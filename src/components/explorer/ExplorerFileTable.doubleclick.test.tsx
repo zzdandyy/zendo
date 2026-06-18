@@ -46,7 +46,6 @@ function renderTable(entries: ExplorerEntry[]) {
       onDelete={async () => {}}
       onEditInEditor={onEditInEditor}
       currentPath="/home"
-      loading={false}
     />,
   );
   const dblClick = (name: string) => {

@@ -1,11 +1,12 @@
 use super::{CrossTransferEvent, CrossTransferStatus, SourceLabel};
-use crate::sftp::transfer_manager::TransferManager;
+use crate::s3::S3Manager;
+use crate::scp::{self, exec as scp_exec, ScpManager};
 use crate::sftp::SftpManager;
 use crate::types::SshError;
 use dashmap::DashMap;
 use russh_sftp::protocol::OpenFlags;
 use std::sync::Arc;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::Instant;
 use tauri::{AppHandle, Emitter, State};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio_util::sync::CancellationToken;
@@ -13,9 +14,11 @@ use tokio_util::sync::CancellationToken;
 static CROSS_TRANSFERS: std::sync::LazyLock<Arc<DashMap<String, CancellationToken>>> =
     std::sync::LazyLock::new(|| Arc::new(DashMap::new()));
 
+const CHUNK: usize = 64 * 1024;
+
 fn now_ms() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis() as u64
 }
@@ -27,7 +30,8 @@ fn now_ms() -> u64 {
 pub async fn cross_transfer(
     app_handle: AppHandle,
     sftp_manager: State<'_, Arc<SftpManager>>,
-    _transfer_manager: State<'_, Arc<TransferManager>>,
+    scp_manager: State<'_, Arc<ScpManager>>,
+    s3_manager: State<'_, Arc<S3Manager>>,
     src_type: String,
     src_session_id: String,
     src_paths: Vec<String>,
@@ -45,14 +49,20 @@ pub async fn cross_transfer(
     let dst_label = parse_label(&dst_type, dst_label_str);
     let app = app_handle.clone();
     let tid = transfer_id.clone();
+    let name = format!("{} → {}", src_label.display(), dst_label.display());
 
     let sftp_mgr = sftp_manager.inner().clone();
+    let scp_mgr = scp_manager.inner().clone();
+    let s3_mgr = s3_manager.inner().clone();
 
     tokio::spawn(async move {
         let result = run(
             &app,
             &sftp_mgr,
+            &scp_mgr,
+            &s3_mgr,
             &tid,
+            &name,
             &src_type,
             &src_session_id,
             &src_paths,
@@ -65,8 +75,19 @@ pub async fn cross_transfer(
         )
         .await;
 
+        let (bytes, total, files_done, files_total, speed) = match &result {
+            Ok(stats) => (
+                stats.bytes_transferred,
+                stats.total_bytes,
+                stats.files_done,
+                stats.files_total,
+                stats.speed_bps,
+            ),
+            Err(_) => (0, 0, 0, 0, 0),
+        };
+
         let status = match result {
-            Ok(()) => CrossTransferStatus::Completed,
+            Ok(_) => CrossTransferStatus::Completed,
             Err(_) if cancel_token.is_cancelled() => CrossTransferStatus::Cancelled,
             Err(_) => CrossTransferStatus::Failed,
         };
@@ -76,16 +97,16 @@ pub async fn cross_transfer(
             "cross:transfer",
             CrossTransferEvent {
                 transfer_id: tid.clone(),
-                name: String::new(),
+                name,
                 src_label: src_label.display(),
                 dst_label: dst_label.display(),
                 status,
                 error: err_msg,
-                bytes_transferred: 0,
-                total_bytes: 0,
-                files_done: 0,
-                files_total: 0,
-                speed_bps: 0,
+                bytes_transferred: bytes,
+                total_bytes: total,
+                files_done,
+                files_total,
+                speed_bps: speed,
                 eta_secs: None,
                 created_at: now_ms(),
             },
@@ -101,8 +122,20 @@ fn parse_label(typ: &str, label: Option<String>) -> SourceLabel {
     match typ {
         "local" => SourceLabel::Local,
         "s3" => SourceLabel::S3(label.unwrap_or_else(|| "S3".into())),
+        "scp" => SourceLabel::Host(label.unwrap_or_else(|| "Remote".into())),
+        "sftp" => SourceLabel::Host(label.unwrap_or_else(|| "Remote".into())),
         _ => SourceLabel::Host(label.unwrap_or_else(|| "Remote".into())),
     }
+}
+
+// ─── Transfer stats ─────────────────────────────────────────────────────────
+
+struct TransferStats {
+    bytes_transferred: u64,
+    total_bytes: u64,
+    files_done: u32,
+    files_total: u32,
+    speed_bps: u64,
 }
 
 // ─── Core transfer logic ─────────────────────────────────────────────────────
@@ -111,7 +144,10 @@ fn parse_label(typ: &str, label: Option<String>) -> SourceLabel {
 async fn run(
     app: &AppHandle,
     sftp_manager: &SftpManager,
+    scp_manager: &ScpManager,
+    s3_manager: &S3Manager,
     transfer_id: &str,
+    name: &str,
     src_type: &str,
     src_session_id: &str,
     src_paths: &[String],
@@ -121,17 +157,24 @@ async fn run(
     src_label: &SourceLabel,
     dst_label: &SourceLabel,
     cancel: &CancellationToken,
-) -> Result<(), SshError> {
-    // Walk source tree
-    let mut file_pairs: Vec<(String, String)> = Vec::new();
-    let mut stack = src_paths.to_vec();
+) -> Result<TransferStats, SshError> {
+    // ── Phase 1: walk source tree, collect file pairs with sizes ──────────
+    let mut file_pairs: Vec<(String, String, u64)> = Vec::new();
+    let mut stack: Vec<String> = src_paths.to_vec();
 
     while let Some(src_path) = stack.pop() {
         if cancel.is_cancelled() {
             return Err(SshError::Cancelled);
         }
-        let (is_dir, children) =
-            stat_entry(src_type, src_session_id, &src_path, sftp_manager).await?;
+        let (is_dir, children, size) = stat_entry(
+            src_type,
+            src_session_id,
+            &src_path,
+            sftp_manager,
+            scp_manager,
+            s3_manager,
+        )
+        .await?;
 
         if is_dir {
             for child in children {
@@ -144,28 +187,31 @@ async fn run(
             } else {
                 format!("{dst_dir}/{name}")
             };
-            file_pairs.push((src_path, dst));
+            file_pairs.push((src_path, dst, size));
         }
     }
 
     let files_total = file_pairs.len() as u32;
-    let mut files_done: u32 = 0;
+    let total_bytes: u64 = file_pairs.iter().map(|(_, _, s)| s).sum();
+    let start = Instant::now();
     let mut bytes_done: u64 = 0;
-    let start = std::time::Instant::now();
 
     emit(
         app,
         transfer_id,
+        name,
         src_label,
         dst_label,
         CrossTransferStatus::InProgress,
         0,
-        0,
+        total_bytes,
         0,
         files_total,
+        0,
     );
 
-    for (src_path, dst_path) in &file_pairs {
+    // ── Phase 2: transfer each file, reporting progress ──────────────────
+    for (i, (src_path, dst_path, _size)) in file_pairs.iter().enumerate() {
         if cancel.is_cancelled() {
             return Err(SshError::Cancelled);
         }
@@ -178,39 +224,58 @@ async fn run(
             dst_session_id,
             dst_path,
             sftp_manager,
+            scp_manager,
+            s3_manager,
         )
         .await?;
 
         bytes_done += chunk;
-        files_done += 1;
-
+        let files_done = (i + 1) as u32;
         let elapsed = start.elapsed().as_secs_f64().max(0.001);
         let speed = (bytes_done as f64 / elapsed) as u64;
-        let _eta = if speed > 0 { Some(0u64) } else { None };
 
         emit(
             app,
             transfer_id,
+            name,
             src_label,
             dst_label,
             CrossTransferStatus::InProgress,
             bytes_done,
-            0,
+            total_bytes,
             files_done,
             files_total,
+            speed,
         );
     }
 
-    Ok(())
+    let elapsed = start.elapsed().as_secs_f64().max(0.001);
+    let final_speed = if bytes_done > 0 {
+        (bytes_done as f64 / elapsed) as u64
+    } else {
+        0
+    };
+
+    Ok(TransferStats {
+        bytes_transferred: bytes_done,
+        total_bytes,
+        files_done: files_total,
+        files_total,
+        speed_bps: final_speed,
+    })
 }
 
-/// Returns (is_dir, child_names).
+/// Returns (is_dir, child_names, file_size_in_bytes).
+/// For directories, children are the entry names; size is 0.
+/// For files, children is empty; size is the file size.
 async fn stat_entry(
     typ: &str,
     session_id: &str,
     path: &str,
     sftp_manager: &SftpManager,
-) -> Result<(bool, Vec<String>), SshError> {
+    scp_manager: &ScpManager,
+    s3_manager: &S3Manager,
+) -> Result<(bool, Vec<String>, u64), SshError> {
     match typ {
         "local" => {
             let meta = std::fs::symlink_metadata(path)
@@ -222,12 +287,12 @@ async fn stat_entry(
                         children.push(e.file_name().to_string_lossy().to_string());
                     }
                 }
-                Ok((true, children))
+                Ok((true, children, 0))
             } else {
-                Ok((false, vec![]))
+                Ok((false, vec![], meta.len()))
             }
         }
-        "sftp" | "scp" => {
+        "sftp" => {
             let session = sftp_manager
                 .get_session(session_id)
                 .map_err(|e| SshError::ChannelError(format!("sftp session: {e}")))?;
@@ -241,17 +306,105 @@ async fn stat_entry(
                     .read_dir(path)
                     .await
                     .map_err(|e| SshError::ChannelError(format!("sftp read_dir {path}: {e}")))?;
-                let children = list.map(|f| f.file_name().to_string()).collect();
-                Ok((true, children))
+                let children: Vec<String> = list.map(|f| f.file_name().to_string()).collect();
+                Ok((true, children, 0))
             } else {
-                Ok((false, vec![]))
+                Ok((false, vec![], meta.size.unwrap_or(0)))
             }
         }
-        _ => Err(SshError::ChannelError(format!("unsupported type: {typ}"))),
+        "scp" => {
+            let session = scp_manager
+                .get_session(session_id)
+                .map_err(|e| SshError::ChannelError(format!("scp session: {e}")))?;
+            let stat = scp_exec::stat(session.ssh_handle.clone(), session.flavor, path)
+                .await
+                .map_err(|e| SshError::ChannelError(format!("scp stat {path}: {e}")))?
+                .ok_or_else(|| SshError::ChannelError(format!("scp: {path} not found")))?;
+
+            if stat.entry_type == scp::ScpEntryType::Directory {
+                let entries = scp_exec::list_dir(session.ssh_handle.clone(), session.flavor, path)
+                    .await
+                    .map_err(|e| SshError::ChannelError(format!("scp list_dir {path}: {e}")))?;
+                let children: Vec<String> = entries.into_iter().map(|e| e.name).collect();
+                Ok((true, children, 0))
+            } else {
+                Ok((false, vec![], stat.size))
+            }
+        }
+        "s3" => {
+            let bucket = s3_manager
+                .get_bucket(session_id)
+                .map_err(|e| SshError::ChannelError(format!("s3 bucket: {e}")))?;
+            // List objects with the path as prefix, delimiter '/' to discover
+            // immediate children (both "files" = objects at this prefix, and
+            // "folders" = common prefixes).
+            let results = bucket
+                .list(path.to_string(), Some("/".to_string()))
+                .await
+                .map_err(|e| SshError::ChannelError(format!("s3 list {path}: {e}")))?;
+
+            let mut children: Vec<String> = Vec::new();
+            let mut has_objects = false;
+
+            for result in &results {
+                for obj in &result.contents {
+                    let key = &obj.key;
+                    // Skip the exact prefix match (the directory marker itself)
+                    if key == path || (key.ends_with('/') && key.trim_end_matches('/') == path) {
+                        continue;
+                    }
+                    let name = key
+                        .strip_prefix(path)
+                        .and_then(|s| s.strip_prefix('/'))
+                        .unwrap_or(key);
+                    // If the name contains '/', it's a deeper object — skip for
+                    // immediate listing.
+                    if name.contains('/') {
+                        continue;
+                    }
+                    if !name.is_empty() {
+                        has_objects = true;
+                        children.push(name.to_string());
+                    }
+                }
+                if let Some(ref prefixes) = result.common_prefixes {
+                    for cp in prefixes {
+                        let name = cp
+                            .prefix
+                            .strip_prefix(path)
+                            .and_then(|s| s.strip_prefix('/'))
+                            .unwrap_or(&cp.prefix);
+                        let name = name.trim_end_matches('/');
+                        if !name.is_empty() {
+                            children.push(name.to_string());
+                        }
+                    }
+                }
+            }
+
+            if children.is_empty() && !has_objects {
+                // The path itself is a single object (file)
+                match bucket.head_object(path).await {
+                    Ok((head, _)) => {
+                        let size = head.content_length.unwrap_or(0) as u64;
+                        return Ok((false, vec![], size));
+                    }
+                    Err(_) => {
+                        return Err(SshError::ChannelError(format!("s3: {path} not found")));
+                    }
+                }
+            }
+
+            Ok((true, children, 0))
+        }
+        _ => Err(SshError::ChannelError(format!(
+            "unsupported source type: {typ}"
+        ))),
     }
 }
 
-/// Transfer one file, return bytes transferred.
+/// Transfer one file, return bytes transferred. The file is streamed in
+/// 64 KB chunks — no whole-file buffering.
 async fn transfer_file(
     src_type: &str,
     src_session_id: &str,
@@ -260,6 +413,8 @@ async fn transfer_file(
     dst_session_id: &str,
     dst_path: &str,
     sftp_manager: &SftpManager,
+    scp_manager: &ScpManager,
+    s3_manager: &S3Manager,
 ) -> Result<u64, SshError> {
     match (src_type, dst_type) {
         ("local", "local") => transfer_local_to_local(src_path, dst_path),
@@ -279,15 +434,27 @@ async fn transfer_file(
             )
             .await
         }
+        ("local", "scp") => {
+            transfer_local_to_scp(src_path, dst_path, dst_session_id, scp_manager).await
+        }
+        ("scp", "local") => {
+            transfer_scp_to_local(src_path, dst_path, src_session_id, scp_manager).await
+        }
+        ("local", "s3") => {
+            transfer_local_to_s3(src_path, dst_path, dst_session_id, s3_manager).await
+        }
+        ("s3", "local") => {
+            transfer_s3_to_local(src_path, dst_path, src_session_id, s3_manager).await
+        }
         _ => Err(SshError::ChannelError(format!(
-            "unsupported: {src_type} → {dst_type}"
+            "unsupported cross-transfer: {src_type} → {dst_type}"
         ))),
     }
 }
 
 // ─── Transfer implementations ─────────────────────────────────────────────────
 
-const CHUNK: usize = 64 * 1024;
+// ── local ↔ local ─────────────────────────────────────────────────────────
 
 fn transfer_local_to_local(src: &str, dst: &str) -> Result<u64, SshError> {
     if let Some(p) = std::path::Path::new(dst).parent() {
@@ -296,8 +463,14 @@ fn transfer_local_to_local(src: &str, dst: &str) -> Result<u64, SshError> {
                 .map_err(|e| SshError::IoError(format!("mkdir {p:?}: {e}")))?;
         }
     }
-    std::fs::copy(src, dst).map_err(|e| SshError::IoError(format!("copy {src} → {dst}: {e}")))
+    let len = std::fs::metadata(src)
+        .map_err(|e| SshError::IoError(format!("stat {src}: {e}")))?
+        .len();
+    std::fs::copy(src, dst).map_err(|e| SshError::IoError(format!("copy {src} → {dst}: {e}")))?;
+    Ok(len)
 }
+
+// ── local → sftp (streaming) ──────────────────────────────────────────────
 
 async fn transfer_local_to_sftp(
     src: &str,
@@ -305,10 +478,9 @@ async fn transfer_local_to_sftp(
     dst_session: &str,
     sftp_manager: &SftpManager,
 ) -> Result<u64, SshError> {
-    let data = tokio::fs::read(src)
+    let mut local_file = tokio::fs::File::open(src)
         .await
-        .map_err(|e| SshError::IoError(format!("read {src}: {e}")))?;
-    let len = data.len() as u64;
+        .map_err(|e| SshError::IoError(format!("open {src}: {e}")))?;
 
     let session = sftp_manager
         .get_session(dst_session)
@@ -324,17 +496,46 @@ async fn transfer_local_to_sftp(
         )
         .await
         .map_err(|e| SshError::ChannelError(format!("sftp create {dst}: {e}")))?;
-    handle
-        .write_all(&data)
-        .await
-        .map_err(|e| SshError::ChannelError(format!("sftp write {dst}: {e}")))?;
+
+    let mut total: u64 = 0;
+    let mut buf = vec![0u8; CHUNK];
+
+    let stream_result = async {
+        loop {
+            let n = local_file
+                .read(&mut buf)
+                .await
+                .map_err(|e| SshError::IoError(format!("read {src}: {e}")))?;
+            if n == 0 {
+                break;
+            }
+            handle
+                .write_all(&buf[..n])
+                .await
+                .map_err(|e| SshError::ChannelError(format!("sftp write {dst}: {e}")))?;
+            total += n as u64;
+        }
+        Ok::<_, SshError>(())
+    }
+    .await;
+
+    if let Err(e) = stream_result {
+        // Clean up partial remote file on failure.
+        let _ = handle.shutdown().await;
+        let sftp = session.sftp.lock().await;
+        let _ = sftp.remove_file(dst).await;
+        return Err(e);
+    }
+
     handle
         .shutdown()
         .await
         .map_err(|e| SshError::ChannelError(format!("sftp close {dst}: {e}")))?;
 
-    Ok(len)
+    Ok(total)
 }
+
+// ── sftp → local (streaming) ──────────────────────────────────────────────
 
 async fn transfer_sftp_to_local(
     src: &str,
@@ -351,19 +552,6 @@ async fn transfer_sftp_to_local(
         .open(src)
         .await
         .map_err(|e| SshError::ChannelError(format!("sftp open {src}: {e}")))?;
-    let mut data = Vec::new();
-    let mut buf = vec![0u8; CHUNK];
-    loop {
-        let n = handle
-            .read(&mut buf)
-            .await
-            .map_err(|e| SshError::ChannelError(format!("sftp read {src}: {e}")))?;
-        if n == 0 {
-            break;
-        }
-        data.extend_from_slice(&buf[..n]);
-    }
-    handle.shutdown().await.ok();
 
     if let Some(p) = std::path::Path::new(dst).parent() {
         if !p.as_os_str().is_empty() {
@@ -371,12 +559,50 @@ async fn transfer_sftp_to_local(
                 .map_err(|e| SshError::IoError(format!("mkdir {p:?}: {e}")))?;
         }
     }
-    tokio::fs::write(dst, &data)
-        .await
-        .map_err(|e| SshError::IoError(format!("write {dst}: {e}")))?;
 
-    Ok(data.len() as u64)
+    let mut local_file = tokio::fs::File::create(dst)
+        .await
+        .map_err(|e| SshError::IoError(format!("create {dst}: {e}")))?;
+
+    let mut total: u64 = 0;
+    let mut buf = vec![0u8; CHUNK];
+
+    let stream_result = async {
+        loop {
+            let n = handle
+                .read(&mut buf)
+                .await
+                .map_err(|e| SshError::ChannelError(format!("sftp read {src}: {e}")))?;
+            if n == 0 {
+                break;
+            }
+            local_file
+                .write_all(&buf[..n])
+                .await
+                .map_err(|e| SshError::IoError(format!("write {dst}: {e}")))?;
+            total += n as u64;
+        }
+        Ok::<_, SshError>(())
+    }
+    .await;
+
+    if let Err(e) = stream_result {
+        drop(local_file);
+        let _ = tokio::fs::remove_file(dst).await;
+        handle.shutdown().await.ok();
+        return Err(e);
+    }
+
+    handle.shutdown().await.ok();
+    local_file
+        .flush()
+        .await
+        .map_err(|e| SshError::IoError(format!("flush {dst}: {e}")))?;
+
+    Ok(total)
 }
+
+// ── sftp → sftp (streaming, no local disk) ────────────────────────────────
 
 async fn transfer_sftp_to_sftp(
     src: &str,
@@ -385,53 +611,202 @@ async fn transfer_sftp_to_sftp(
     dst_session: &str,
     sftp_manager: &SftpManager,
 ) -> Result<u64, SshError> {
-    let src_session = sftp_manager
+    let src_session_ref = sftp_manager
         .get_session(src_session)
         .map_err(|e| SshError::ChannelError(format!("sftp session: {e}")))?;
-    let sftp_src = src_session.sftp.lock().await;
+    let sftp_src = src_session_ref.sftp.lock().await;
     let mut handle = sftp_src
         .open(src)
         .await
         .map_err(|e| SshError::ChannelError(format!("sftp open {src}: {e}")))?;
-    let mut data = Vec::new();
-    let mut buf = vec![0u8; CHUNK];
-    loop {
-        let n = handle
-            .read(&mut buf)
-            .await
-            .map_err(|e| SshError::ChannelError(format!("sftp read {src}: {e}")))?;
-        if n == 0 {
-            break;
-        }
-        data.extend_from_slice(&buf[..n]);
-    }
-    handle.shutdown().await.ok();
-    drop(sftp_src);
 
-    let dst_session = sftp_manager
+    let dst_session_ref = sftp_manager
         .get_session(dst_session)
         .map_err(|e| SshError::ChannelError(format!("sftp session: {e}")))?;
-    let sftp_dst = dst_session.sftp.lock().await;
+    let sftp_dst = dst_session_ref.sftp.lock().await;
     ensure_sftp_parent_dir(&sftp_dst, dst).await?;
 
-    let mut handle = sftp_dst
+    let mut dst_handle = sftp_dst
         .open_with_flags(
             dst,
             OpenFlags::CREATE | OpenFlags::WRITE | OpenFlags::TRUNCATE,
         )
         .await
         .map_err(|e| SshError::ChannelError(format!("sftp create {dst}: {e}")))?;
-    handle
-        .write_all(&data)
-        .await
-        .map_err(|e| SshError::ChannelError(format!("sftp write {dst}: {e}")))?;
-    handle
+
+    let mut total: u64 = 0;
+    let mut buf = vec![0u8; CHUNK];
+
+    let stream_result = async {
+        loop {
+            let n = handle
+                .read(&mut buf)
+                .await
+                .map_err(|e| SshError::ChannelError(format!("sftp read {src}: {e}")))?;
+            if n == 0 {
+                break;
+            }
+            dst_handle
+                .write_all(&buf[..n])
+                .await
+                .map_err(|e| SshError::ChannelError(format!("sftp write {dst}: {e}")))?;
+            total += n as u64;
+        }
+        Ok::<_, SshError>(())
+    }
+    .await;
+
+    if let Err(e) = stream_result {
+        let _ = dst_handle.shutdown().await;
+        // Re-acquire lock for cleanup
+        drop(sftp_dst);
+        let sftp_dst2 = dst_session_ref.sftp.lock().await;
+        let _ = sftp_dst2.remove_file(dst).await;
+        handle.shutdown().await.ok();
+        return Err(e);
+    }
+
+    handle.shutdown().await.ok();
+    dst_handle
         .shutdown()
         .await
         .map_err(|e| SshError::ChannelError(format!("sftp close {dst}: {e}")))?;
 
-    Ok(data.len() as u64)
+    Ok(total)
 }
+
+// ── local → scp ───────────────────────────────────────────────────────────
+
+async fn transfer_local_to_scp(
+    src: &str,
+    dst: &str,
+    dst_session: &str,
+    scp_manager: &ScpManager,
+) -> Result<u64, SshError> {
+    let session = scp_manager
+        .get_session(dst_session)
+        .map_err(|e| SshError::ChannelError(format!("scp session: {e}")))?;
+    let handle = session.ssh_handle.clone();
+
+    // Ensure remote parent directory exists.
+    if let Some(parent) = std::path::Path::new(dst).parent() {
+        let p = parent.to_string_lossy();
+        if !p.is_empty() && p != "/" {
+            scp_exec::mkdir_p(handle.clone(), &p)
+                .await
+                .map_err(|e| SshError::ChannelError(format!("scp mkdir {p}: {e}")))?;
+        }
+    }
+
+    let local_meta = tokio::fs::metadata(src)
+        .await
+        .map_err(|e| SshError::IoError(format!("stat {src}: {e}")))?;
+    let size = local_meta.len();
+    let cancel = CancellationToken::new();
+
+    scp::transfer::upload_file(
+        handle,
+        std::path::Path::new(src),
+        dst,
+        &cancel,
+        |_| {}, // progress tracked at file level
+    )
+    .await
+    .map_err(|e| SshError::ChannelError(format!("scp upload {src} → {dst}: {e}")))?;
+
+    Ok(size)
+}
+
+// ── scp → local ───────────────────────────────────────────────────────────
+
+async fn transfer_scp_to_local(
+    src: &str,
+    dst: &str,
+    src_session: &str,
+    scp_manager: &ScpManager,
+) -> Result<u64, SshError> {
+    let session = scp_manager
+        .get_session(src_session)
+        .map_err(|e| SshError::ChannelError(format!("scp session: {e}")))?;
+    let handle = session.ssh_handle.clone();
+
+    if let Some(p) = std::path::Path::new(dst).parent() {
+        if !p.as_os_str().is_empty() {
+            std::fs::create_dir_all(p)
+                .map_err(|e| SshError::IoError(format!("mkdir {p:?}: {e}")))?;
+        }
+    }
+
+    let cancel = CancellationToken::new();
+
+    scp::transfer::download_file(handle, src, std::path::Path::new(dst), &cancel, |_| {})
+        .await
+        .map_err(|e| SshError::ChannelError(format!("scp download {src} → {dst}: {e}")))?;
+
+    let local_meta =
+        std::fs::metadata(dst).map_err(|e| SshError::IoError(format!("stat {dst}: {e}")))?;
+    Ok(local_meta.len())
+}
+
+// ── local → s3 ────────────────────────────────────────────────────────────
+
+async fn transfer_local_to_s3(
+    src: &str,
+    dst: &str,
+    dst_session: &str,
+    s3_manager: &S3Manager,
+) -> Result<u64, SshError> {
+    let bucket = s3_manager
+        .get_bucket(dst_session)
+        .map_err(|e| SshError::ChannelError(format!("s3 bucket: {e}")))?;
+
+    let data = tokio::fs::read(src)
+        .await
+        .map_err(|e| SshError::IoError(format!("read {src}: {e}")))?;
+    let len = data.len() as u64;
+
+    bucket
+        .put_object(dst, &data)
+        .await
+        .map_err(|e| SshError::ChannelError(format!("s3 PUT {dst}: {e}")))?;
+
+    Ok(len)
+}
+
+// ── s3 → local ────────────────────────────────────────────────────────────
+
+async fn transfer_s3_to_local(
+    src: &str,
+    dst: &str,
+    src_session: &str,
+    s3_manager: &S3Manager,
+) -> Result<u64, SshError> {
+    let bucket = s3_manager
+        .get_bucket(src_session)
+        .map_err(|e| SshError::ChannelError(format!("s3 bucket: {e}")))?;
+
+    let response = bucket
+        .get_object(src)
+        .await
+        .map_err(|e| SshError::ChannelError(format!("s3 GET {src}: {e}")))?;
+    let data = response.bytes().to_vec();
+    let len = data.len() as u64;
+
+    if let Some(p) = std::path::Path::new(dst).parent() {
+        if !p.as_os_str().is_empty() {
+            std::fs::create_dir_all(p)
+                .map_err(|e| SshError::IoError(format!("mkdir {p:?}: {e}")))?;
+        }
+    }
+
+    tokio::fs::write(dst, &data)
+        .await
+        .map_err(|e| SshError::IoError(format!("write {dst}: {e}")))?;
+
+    Ok(len)
+}
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
 
 async fn ensure_sftp_parent_dir(
     sftp: &russh_sftp::client::SftpSession,
@@ -443,7 +818,6 @@ async fn ensure_sftp_parent_dir(
         if ps.is_empty() || ps == "/" {
             return Ok(());
         }
-        // Walk up and create missing ancestors
         let parts: Vec<&str> = ps.split('/').filter(|s| !s.is_empty()).collect();
         let mut current = String::new();
         for part in &parts {
@@ -461,29 +835,37 @@ async fn ensure_sftp_parent_dir(
 fn emit(
     app: &AppHandle,
     transfer_id: &str,
+    name: &str,
     src_label: &SourceLabel,
     dst_label: &SourceLabel,
     status: CrossTransferStatus,
     bytes: u64,
-    _total: u64,
+    total: u64,
     files: u32,
     files_total: u32,
+    speed: u64,
 ) {
+    let eta = if speed > 0 && total > bytes {
+        Some((total - bytes) / speed)
+    } else {
+        None
+    };
+
     let _ = app.emit(
         "cross:transfer",
         CrossTransferEvent {
             transfer_id: transfer_id.to_string(),
-            name: String::new(),
+            name: name.to_string(),
             src_label: src_label.display(),
             dst_label: dst_label.display(),
             status,
             error: None,
             bytes_transferred: bytes,
-            total_bytes: 0,
+            total_bytes: total,
             files_done: files,
             files_total,
-            speed_bps: 0,
-            eta_secs: None,
+            speed_bps: speed,
+            eta_secs: eta,
             created_at: now_ms(),
         },
     );

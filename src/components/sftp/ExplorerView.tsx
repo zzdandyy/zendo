@@ -726,8 +726,6 @@ export function ExplorerView({ sessionId, transport = "sftp", isActive = true }:
         loading={session.loading}
         onNavigate={(path) => void loadDirectory(path)}
         onRefresh={() => void loadDirectory(session.currentPath)}
-        onNewFile={() => setCreatingFile(true)}
-        onNewFolder={() => setCreatingFolder(true)}
         onUpload={() => void handleUpload()}
         busy={busy}
         sudoMode={sudoMode}
@@ -761,9 +759,11 @@ export function ExplorerView({ sessionId, transport = "sftp", isActive = true }:
         onEditInEditor={handleEditInEditor}
         onApplyPermissions={handleApplyPermissions}
         creatingFile={creatingFile}
+        onStartCreateFile={() => setCreatingFile(true)}
         onCreateFile={(name) => void handleCreateFile(name)}
         onCancelCreateFile={() => setCreatingFile(false)}
         creatingFolder={creatingFolder}
+        onStartCreateFolder={() => setCreatingFolder(true)}
         onCreateFolder={(name) => void handleCreateFolder(name)}
         onCancelCreateFolder={() => setCreatingFolder(false)}
         onPaste={() => void handlePaste()}
@@ -771,7 +771,6 @@ export function ExplorerView({ sessionId, transport = "sftp", isActive = true }:
         onCopyEntries={handleCopyEntries}
         onDragOut={transport === "sftp" ? handleDragOut : undefined}
         currentPath={session.currentPath}
-        loading={session.loading}
         busy={busy}
       />
 

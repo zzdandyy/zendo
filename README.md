@@ -40,10 +40,12 @@
       <h3>📁 Dual-Pane File Manager</h3>
       <ul>
         <li>Left & right panes — each independent: Local, SSH Host, or S3</li>
-        <li>Cross-pane copy/paste = streaming relay transfer (Rust backend, zero local disk)</li>
+        <li>Cross-pane copy/paste = streaming relay transfer (64 KB chunks, zero local disk)</li>
+        <li>Drag-and-drop upload with real-time progress (speed, ETA) via transfer queue</li>
+        <li>Folder upload support — directory tree walk with concurrency control</li>
         <li>Hidden-file toggle, unified date format (<code>YYYY/MM/DD HH:mm</code>)</li>
-        <li>Source selector in toolbar</li>
-        <li>Transfer FAB (bottom-right, visible when transfers active)</li>
+        <li>Source selector in toolbar; create file/folder via right-click context menu</li>
+        <li>Transfer popover & FAB, auto-refresh on upload completion</li>
       </ul>
     </td>
   </tr>

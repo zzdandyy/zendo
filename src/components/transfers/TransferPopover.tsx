@@ -19,25 +19,28 @@ interface Stats {
   list: TransferEvent[];
   activeCount: number;
   queuedCount: number;
-  finishedCount: number;
+  completedCount: number;
+  cancelledCount: number;
 }
 
 function computeStats(transfers: Map<string, TransferEvent>): Stats {
   let activeCount = 0;
   let queuedCount = 0;
-  let finishedCount = 0;
+  let completedCount = 0;
+  let cancelledCount = 0;
   const list: TransferEvent[] = [];
 
   for (const t of transfers.values()) {
     list.push(t);
     const s = getStatusString(t.status);
     if (s === "InProgress") activeCount++;
-    if (s === "Queued") queuedCount++;
-    if (s === "Completed" || s === "Failed" || s === "Cancelled") finishedCount++;
+    else if (s === "Queued") queuedCount++;
+    else if (s === "Completed") completedCount++;
+    else if (s === "Cancelled") cancelledCount++;
   }
 
   list.sort((a, b) => sortPriority(a.status) - sortPriority(b.status));
-  return { list, activeCount, queuedCount, finishedCount };
+  return { list, activeCount, queuedCount, completedCount, cancelledCount };
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -55,8 +58,15 @@ export function TransferPopover({ anchorRect, onClose }: TransferPopoverProps) {
   const clearFinished = useTransferStore((s) => s.clearFinished);
   const popoverRef = useRef<HTMLDivElement>(null);
 
+  // Clear terminal transfers when the popover opens.
+  const prevOpen = useRef(false);
+  useEffect(() => {
+    if (!prevOpen.current) { prevOpen.current = true; return; }
+    clearFinished();
+  }, [clearFinished]);
+
   const stats = useMemo(() => computeStats(transfers), [transfers]);
-  const { list, activeCount, queuedCount, finishedCount } = stats;
+  const { list, activeCount, queuedCount, completedCount, cancelledCount } = stats;
 
   // Close on outside click
   useEffect(() => {
@@ -85,10 +95,11 @@ export function TransferPopover({ anchorRect, onClose }: TransferPopoverProps) {
   // ─── Actions ────────────────────────────────────────────────────────────────
 
   /** Which backend owns a transfer, inferred from its session-id field. */
-  const protocolOf = useCallback((id: string): "s3" | "scp" | "sftp" => {
+  const protocolOf = useCallback((id: string): "s3" | "scp" | "sftp" | "cross" => {
     const t = transfers.get(id);
     if (t?.s3_session_id) return "s3";
     if (t?.scp_session_id) return "scp";
+    if (t?.sftp_session_id === "__cross__") return "cross";
     return "sftp";
   }, [transfers]);
 
@@ -96,7 +107,12 @@ export function TransferPopover({ anchorRect, onClose }: TransferPopoverProps) {
     void (async () => {
       try {
         const { invoke } = await import("@tauri-apps/api/core");
-        await invoke(`${protocolOf(id)}_cancel_transfer`, { transferId: id });
+        const proto = protocolOf(id);
+        if (proto === "cross") {
+          await invoke("cross_cancel_transfer", { transferId: id });
+        } else {
+          await invoke(`${proto}_cancel_transfer`, { transferId: id });
+        }
       } catch {
         removeTransfer(id);
       }
@@ -107,34 +123,36 @@ export function TransferPopover({ anchorRect, onClose }: TransferPopoverProps) {
     void (async () => {
       try {
         const { invoke } = await import("@tauri-apps/api/core");
-        await invoke(`${protocolOf(id)}_retry_transfer`, { transferId: id });
+        const proto = protocolOf(id);
+        if (proto === "cross") {
+          // Cross-pane transfers don't have a retry command — just dismiss.
+          removeTransfer(id);
+          return;
+        }
+        await invoke(`${proto}_retry_transfer`, { transferId: id });
       } catch { /* best-effort */ }
     })();
-  }, [protocolOf]);
+  }, [protocolOf, removeTransfer]);
 
   const handleDismiss = useCallback((id: string) => {
     removeTransfer(id);
   }, [removeTransfer]);
 
-  const handleClearFinished = useCallback(() => {
-    clearFinished();
-    void (async () => {
-      try {
-        const { invoke } = await import("@tauri-apps/api/core");
-        await invoke("sftp_clear_finished_transfers");
-        await invoke("scp_clear_finished_transfers");
-        await invoke("s3_clear_finished_transfers");
-      } catch { /* best-effort */ }
-    })();
-  }, [clearFinished]);
-
   // ─── Positioning ────────────────────────────────────────────────────────────
 
-  // Anchor to the right of the trigger, aligned to bottom
+  // Anchor to the right of the trigger button, aligned to bottom,
+  // clamped to stay within viewport bounds.
+  const POPOVER_W = 340;
   const style: React.CSSProperties = {};
   if (anchorRect) {
+    const gap = 8;
+    let left = anchorRect.right + gap;
+    if (left + POPOVER_W > window.innerWidth - gap) {
+      left = window.innerWidth - POPOVER_W - gap;
+    }
+    left = Math.max(gap, left);
     style.position = "fixed";
-    style.left = anchorRect.right + 8;
+    style.left = left;
     style.bottom = window.innerHeight - anchorRect.bottom;
     style.zIndex = 50;
   }
@@ -144,7 +162,8 @@ export function TransferPopover({ anchorRect, onClose }: TransferPopoverProps) {
   const summaryParts: string[] = [];
   if (activeCount > 0) summaryParts.push(t("status.active", { count: activeCount }));
   if (queuedCount > 0) summaryParts.push(t("status.queued_count", { count: queuedCount }));
-  if (finishedCount > 0) summaryParts.push(t("status.done_count", { count: finishedCount }));
+  if (completedCount > 0) summaryParts.push(t("status.done_count", { count: completedCount }));
+  if (cancelledCount > 0) summaryParts.push(t("status.cancelled_count", { count: cancelledCount }));
 
   // ─── Render ─────────────────────────────────────────────────────────────────
 
@@ -174,24 +193,6 @@ export function TransferPopover({ anchorRect, onClose }: TransferPopoverProps) {
         )}
 
         <span className="flex-1" />
-
-        {/* Clear finished */}
-        {finishedCount > 0 && (
-          <button
-            onClick={handleClearFinished}
-            title={t("transfers.popover.clearCompleted")}
-            aria-label={t("transfers.popover.clearCompleted")}
-            className={[
-              "flex items-center gap-1 px-2 py-1 rounded-md",
-              "text-[length:var(--text-2xs)] font-medium",
-              "text-text-muted hover:text-text-secondary hover:bg-bg-subtle",
-              "transition-colors duration-[var(--duration-fast)]",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-            ].join(" ")}
-          >
-            {t("button.clear")}
-          </button>
-        )}
 
         {/* Close */}
         <button

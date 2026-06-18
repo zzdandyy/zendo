@@ -251,10 +251,14 @@ export function Pane({
   }, [source]);
 
   const provider = useMemo(() => {
-    if (source.type === "local") return createLocalProvider();
-    if (source.type === "host") return createSftpProvider(sessionId);
-    if (source.type === "s3") return createS3Provider(sessionId, currentPath.split("/").filter(Boolean)[0] ?? "");
-    return createLocalProvider();
+    let p;
+    if (source.type === "local") p = createLocalProvider();
+    else if (source.type === "host") p = createSftpProvider(sessionId);
+    else if (source.type === "s3") p = createS3Provider(sessionId, currentPath.split("/").filter(Boolean)[0] ?? "");
+    else p = createLocalProvider();
+    // Disable the toolbar upload button in the dual-pane transfer view —
+    // uploads are handled via OS drag-and-drop in this context.
+    return { ...p, capabilities: { ...p.capabilities, canUpload: false } };
   }, [source, sessionId, currentPath]);
 
   // ─── State ────────────────────────────────────────────────────────────────
@@ -347,6 +351,19 @@ export function Pane({
 
   // ─── Drag-drop (OS → Pane) ──────────────────────────────────────────────
 
+  /** Whether drop coordinates land inside this pane's DOM element. */
+  const isOverPane = useCallback(
+    (position?: { x: number; y: number }): boolean => {
+      if (!position || !paneRef.current) return false;
+      const scale = isWindowsWebview() ? window.devicePixelRatio || 1 : 1;
+      const x = position.x / scale;
+      const y = position.y / scale;
+      const r = paneRef.current.getBoundingClientRect();
+      return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+    },
+    [],
+  );
+
   const resolveDropDir = useCallback(
     (position?: { x: number; y: number }): string => {
       const base = currentPathRef.current;
@@ -363,6 +380,8 @@ export function Pane({
     },
     [entries],
   );
+
+  const paneRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let aborted = false;
@@ -384,11 +403,18 @@ export function Pane({
         const unsub = await appWindow.onDragDropEvent((event: any) => {
           const type = event.payload?.type;
           if (type === "enter" || type === "over") {
-            setIsDragOver(true);
-            setDropTargetDir(resolveDropDir(event.payload?.position));
+            // Highlight this pane only when the cursor is actually over it.
+            const over = isOverPane(event.payload?.position);
+            setIsDragOver(over);
+            if (over) {
+              setDropTargetDir(resolveDropDir(event.payload?.position));
+            }
           } else if (type === "drop") {
             setIsDragOver(false);
             setDropTargetDir(null);
+
+            // Only process the drop if it landed on this pane.
+            if (!isOverPane(event.payload?.position)) return;
 
             const paths: string[] = event.payload?.paths ?? [];
             if (paths.some((p) => p.includes(DRAGOUT_STAGING_SEGMENT))) return;
@@ -428,24 +454,50 @@ export function Pane({
     return () => { aborted = true; unlisten?.(); };
   }, [source, transport, sessionId, resolveDropDir]);
 
-  // ─── Auto-refresh on upload completion ─────────────────────────────────
+  // ─── Auto-refresh on upload progress / completion ──────────────────────
+  //
+  // Transfer events are bursty (emitted per progress chunk), so we avoid
+  // reacting to individual events. Instead: start a 3 s polling loop as
+  // soon as any upload is active, with an immediate first refresh at 300 ms.
 
   useEffect(() => {
     let aborted = false;
     let unlisten: (() => void) | undefined;
+    const activeIds = new Set<string>();
+    let pollTimer: ReturnType<typeof setInterval> | null = null;
+    let firstTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const refreshNow = () => {
+      const path = currentPathRef.current;
+      if (path) void loadDir(path);
+    };
+
     (async () => {
       try {
         const { listen } = await import("@tauri-apps/api/event");
         if (aborted) return;
         const ch = transferEventName(transport);
         const unsub = await listen<any>(ch, (event) => {
-          const { direction, status } = event.payload;
+          const { direction, status, transfer_id } = event.payload;
           const sid = event.payload.sftp_session_id ?? event.payload.scp_session_id ?? event.payload.s3_session_id;
-          if (sid === sessionId && direction === "Upload" && status === "Completed") {
-            setTimeout(() => {
-              const path = currentPathRef.current;
-              if (path) void loadDir(path);
-            }, 300);
+          if (sid !== sessionId || direction !== "Upload") return;
+
+          if (status === "InProgress" || status === "Queued") {
+            activeIds.add(transfer_id);
+            if (!pollTimer) {
+              firstTimer = setTimeout(() => {
+                firstTimer = null;
+                refreshNow();
+                pollTimer = setInterval(refreshNow, 3000);
+              }, 300);
+            }
+          } else if (status === "Completed" || status === "Failed" || status === "Cancelled") {
+            activeIds.delete(transfer_id);
+            setTimeout(refreshNow, 300);
+            if (activeIds.size === 0) {
+              if (firstTimer) { clearTimeout(firstTimer); firstTimer = null; }
+              if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+            }
           }
         });
         if (!aborted) unlisten = unsub;
@@ -453,7 +505,12 @@ export function Pane({
         // Not in Tauri context
       }
     })();
-    return () => { aborted = true; unlisten?.(); };
+    return () => {
+      aborted = true;
+      unlisten?.();
+      if (firstTimer) clearTimeout(firstTimer);
+      if (pollTimer) clearInterval(pollTimer);
+    };
   }, [transport, sessionId, loadDir]);
 
   // ─── Operations ─────────────────────────────────────────────────────────
@@ -471,12 +528,28 @@ export function Pane({
       setBusy(true);
       try {
         if (source.type === "s3") {
-          // S3 download uses a file picker — handled by the parent
           await invoke("s3_download_file", { s3SessionId: source.sessionId, key: entry.id });
+        } else if (entry.entryType === "Directory") {
+          const { open } = await import("@tauri-apps/plugin-dialog");
+          const localDir = await open({
+            directory: true,
+            title: `${t("common:download")}: ${entry.name}`,
+          }) as string | null;
+          if (!localDir) { setBusy(false); return; }
+          await explorerInvoke(transport, "enqueue_download", sessionId, {
+            remotePaths: [entry.id],
+            localDir,
+          });
         } else {
-          // For local, we don't "download" to self; for host, use sftp/scp download
+          const { save } = await import("@tauri-apps/plugin-dialog");
+          const savePath = await save({
+            defaultPath: entry.name,
+            title: `${t("common:download")}: ${entry.name}`,
+          });
+          if (!savePath) { setBusy(false); return; }
           await explorerInvoke(transport, "download", sessionId, {
             remotePath: entry.id,
+            localPath: savePath,
           });
         }
       } catch (err) {
@@ -492,12 +565,17 @@ export function Pane({
     async (ents: ExplorerEntry[]) => {
       setBusy(true);
       try {
-        const paths = ents.map((e) => e.id);
         if (source.type === "s3") {
-          await invoke("s3_delete_objects", { s3SessionId: source.sessionId, keys: paths });
+          await invoke("s3_delete_objects", { s3SessionId: source.sessionId, keys: ents.map((e) => e.id) });
         } else {
-          await explorerInvoke(transport, "delete", sessionId, { paths });
+          for (const entry of ents) {
+            await explorerInvoke(transport, "delete", sessionId, {
+              path: entry.id,
+              isDir: entry.entryType === "Directory",
+            });
+          }
         }
+        toast.success(t("explorer.errors.deleteSuccess", { count: ents.length }));
         await loadDir(currentPathRef.current);
       } catch (err) {
         setErrorState(errorMessage(err, t("explorer.errors.deleteFailed")));
@@ -673,7 +751,7 @@ export function Pane({
   ].join(" ");
 
   return (
-    <div className="flex flex-col h-full min-w-0">
+    <div ref={paneRef} className="flex flex-col h-full min-w-0">
       {/* Toolbar + hidden-files toggle — border spans full width */}
       <div className="flex items-center gap-0 border-b border-border bg-bg-surface">
         <div className="flex-1 min-w-0">
@@ -683,11 +761,7 @@ export function Pane({
             segments={segments}
             onNavigate={handleNavigate}
             onRefresh={() => void loadDir(currentPath)}
-            onNewFile={provider.capabilities.canCreateFile ? () => setCreatingFile(true) : () => {}}
-            onNewFolder={provider.capabilities.canCreateFolder ? () => setCreatingFolder(true) : () => {}}
-            onUpload={provider.capabilities.canUpload ? () => {
-              // Upload via OS drag-drop; toolbar button is a visual affordance
-            } : () => {}}
+            onUpload={() => {}}
             loading={loading}
             busy={busy || busyProp}
             leadingSlot={onSourceChange ? (
@@ -719,7 +793,7 @@ export function Pane({
       </div>
 
       {/* File table — flex flex-col so ExplorerFileTable's flex-1 + overflow-y-auto works */}
-      <div className="flex-1 min-h-0 flex flex-col" data-pane={side}>
+      <div className="flex-1 min-h-0 flex flex-col relative" data-pane={side}>
         {isDragOver && (
           <ExplorerDropZone
             path={dropTargetDir ?? currentPath}
@@ -740,9 +814,11 @@ export function Pane({
           onEditInEditor={provider.capabilities.canEditInEditor ? handleEditInEditor : undefined}
           onApplyPermissions={provider.capabilities.hasPermissions ? handleApplyPermissions : undefined}
           creatingFile={creatingFile}
+          onStartCreateFile={() => setCreatingFile(true)}
           onCreateFile={handleCreateFile}
           onCancelCreateFile={() => setCreatingFile(false)}
           creatingFolder={creatingFolder}
+          onStartCreateFolder={() => setCreatingFolder(true)}
           onCreateFolder={handleCreateFolder}
           onCancelCreateFolder={() => setCreatingFolder(false)}
           onPaste={clipboard ? handlePaste : undefined}
@@ -772,7 +848,7 @@ export function Pane({
             ? (ents) => {
                 void (async () => {
                   try {
-                    await explorerInvoke(transport, "drag_out", sessionId, { paths: ents.map((e) => e.id) });
+                    await explorerInvoke(transport, "drag_out", sessionId, { remotePaths: ents.map((e) => e.id) });
                   } catch (err) {
                     toast.error(errorMessage(err, t("explorer.errors.dragOutFailed")));
                   }
@@ -780,7 +856,6 @@ export function Pane({
               }
             : undefined}
           currentPath={currentPath}
-          loading={loading}
           busy={busy || busyProp}
         />
 

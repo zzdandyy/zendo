@@ -418,8 +418,6 @@ export function S3Browser({ sessionId, isActive = true }: S3BrowserProps) {
         loading={session.loading}
         onNavigate={(path) => void loadObjects(path)}
         onRefresh={() => void loadObjects(session.currentPrefix)}
-        onNewFile={() => setCreatingFile(true)}
-        onNewFolder={() => setCreatingFolder(true)}
         onUpload={() => void handleUpload()}
       />
 
@@ -445,13 +443,14 @@ export function S3Browser({ sessionId, isActive = true }: S3BrowserProps) {
         onEditInEditor={handleEditInEditor}
         onPresignUrl={(entry) => void handlePresignUrl(entry)}
         creatingFile={creatingFile}
+        onStartCreateFile={() => setCreatingFile(true)}
         onCreateFile={(name) => void handleCreateFile(name)}
         onCancelCreateFile={() => setCreatingFile(false)}
         creatingFolder={creatingFolder}
+        onStartCreateFolder={() => setCreatingFolder(true)}
         onCreateFolder={(name) => void handleCreateFolder(name)}
         onCancelCreateFolder={() => setCreatingFolder(false)}
         currentPath={session.currentPrefix}
-        loading={session.loading}
       />
 
       {isDragOver && <ExplorerDropZone path={session.currentPrefix || bucketName} />}

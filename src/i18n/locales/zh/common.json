@@ -30,7 +30,8 @@
     "calculating": "计算中…",
     "active": "{count} 个进行中",
     "queued_count": "{count} 个等待中",
-    "done_count": "{count} 个已完成"
+    "done_count": "{count} 个已完成",
+        "cancelled_count": "{count} 个已取消"
   },
   "nav": {
     "hosts": "连接",
@@ -180,6 +181,7 @@
       "uploadFailed": "上传失败",
       "downloadFailed": "下载失败",
       "deleteFailed": "删除失败",
+        "deleteSuccess": "已删除 {count} 个项目",
       "createFileFailed": "创建文件失败",
       "createFolderFailed": "创建文件夹失败",
       "pasteFailed": "粘贴失败",

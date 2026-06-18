@@ -30,13 +30,13 @@ export function TransferPage({
 }: TransferPageProps) {
   const { t } = useTranslation();
 
-  function paneLabel(s: PaneSource | null): string {
+  const paneLabel = useCallback((s: PaneSource | null): string => {
     if (!s) return "";
     if (s.type === "local") return t("pane.localLabel");
     if (s.type === "host") return s.label;
     if (s.type === "s3") return s.label;
     return t("pane.unknown");
-  }
+  }, [t]);
 
   const [leftSource, setLeftSource] = useState<PaneSource>(initialLeft);
   const [rightSource, setRightSource] = useState<PaneSource | null>(initialRight);
@@ -54,8 +54,8 @@ export function TransferPage({
     [persistRight],
   );
 
-  const [leftPath, setLeftPath] = useState("/");
-  const [rightPath, setRightPath] = useState("/");
+  const [leftPath, setLeftPath] = useState("");
+  const [rightPath, setRightPath] = useState("");
   const [leftEntries, setLeftEntries] = useState<ExplorerEntry[]>([]);
   const [rightEntries, setRightEntries] = useState<ExplorerEntry[]>([]);
 
@@ -93,7 +93,7 @@ export function TransferPage({
         console.error("Cross transfer failed:", err);
       }
     },
-    [sourceTypeStr, sourceSessionStr],
+    [sourceTypeStr, sourceSessionStr, paneLabel],
   );
 
   const handleLeftPaste = useCallback(

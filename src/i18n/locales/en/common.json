@@ -30,7 +30,8 @@
     "calculating": "Calculating…",
     "active": "{count} active",
     "queued_count": "{count} queued",
-    "done_count": "{count} done"
+    "done_count": "{count} done",
+        "cancelled_count": "{count} cancelled"
   },
   "nav": {
     "hosts": "Connections",
@@ -180,6 +181,7 @@
       "uploadFailed": "Upload failed",
       "downloadFailed": "Download failed",
       "deleteFailed": "Delete failed",
+        "deleteSuccess": "Deleted {count} {count, plural, one {item} other {items}}",
       "createFileFailed": "Create file failed",
       "createFolderFailed": "Create folder failed",
       "pasteFailed": "Paste failed",

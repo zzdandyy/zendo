@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { ChevronRight } from "lucide-react";
 
@@ -46,25 +47,45 @@ function clampPosition(
 
 function MenuRow({ item, onClose }: { item: ContextMenuItem; onClose: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
+  const subRef = useRef<HTMLDivElement>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [open, setOpen] = useState(false);
   const [flip, setFlip] = useState(false);
+  const [subTop, setSubTop] = useState<number | undefined>(undefined);
   const hasSubmenu = !!item.submenu && item.submenu.length > 0;
   const Icon = item.icon;
 
-  // Open the flyout to the left when it would overflow the right viewport edge.
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (open && ref.current) {
-      const rect = ref.current.getBoundingClientRect();
-      setFlip(rect.right + MENU_WIDTH > window.innerWidth);
+      setFlip(ref.current.getBoundingClientRect().right + MENU_WIDTH > window.innerWidth);
     }
-  }, [open]);
+    if (open && subRef.current) {
+      const r = subRef.current.getBoundingClientRect();
+      if (r.bottom > window.innerHeight) {
+        setSubTop(window.innerHeight - r.bottom - 8);
+      } else {
+        setSubTop(undefined);
+      }
+    }
+  }, [open, item.submenu?.length]);
+
+  const handleMouseEnter = () => {
+    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
+    if (hasSubmenu) setOpen(true);
+  };
+  const handleMouseLeave = () => {
+    // Delay close so the user can move to the absolutely-positioned submenu.
+    if (hasSubmenu) {
+      timerRef.current = setTimeout(() => setOpen(false), 150);
+    }
+  };
 
   return (
     <div
       ref={ref}
       className="relative"
-      onMouseEnter={() => hasSubmenu && setOpen(true)}
-      onMouseLeave={() => hasSubmenu && setOpen(false)}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       {item.separator && <div className="h-px bg-border my-1" role="separator" />}
       <button
@@ -107,9 +128,11 @@ function MenuRow({ item, onClose }: { item: ContextMenuItem; onClose: () => void
 
       {hasSubmenu && open && (
         <div
+          ref={subRef}
           role="menu"
+          style={subTop !== undefined ? { top: subTop } : undefined}
           className={[
-            "absolute top-0 z-10 py-1 min-w-[160px]",
+            "absolute top-0 z-10 py-1 min-w-[160px] max-h-[50vh] overflow-y-auto no-scrollbar",
             flip ? "right-full mr-0.5" : "left-full ml-0.5",
             "bg-bg-overlay border border-border rounded-lg",
             "shadow-[var(--shadow-lg)]",
@@ -130,7 +153,19 @@ function MenuRow({ item, onClose }: { item: ContextMenuItem; onClose: () => void
 export function ContextMenu({ items, position, onClose }: ContextMenuProps) {
   const { t } = useTranslation();
   const menuRef = useRef<HTMLDivElement>(null);
-  const { x, y } = clampPosition(position.x, position.y, items.length);
+  const initialY = clampPosition(position.x, position.y, items.length).y;
+  const x = clampPosition(position.x, position.y, items.length).x;
+  const [adjustedY, setAdjustedY] = useState(initialY);
+
+  // Re-clamp Y based on actual rendered height (clampPosition only estimates).
+  useLayoutEffect(() => {
+    if (menuRef.current) {
+      const r = menuRef.current.getBoundingClientRect();
+      if (r.bottom > window.innerHeight) {
+        setAdjustedY(window.innerHeight - r.height - 8);
+      }
+    }
+  }, []);
 
   // Close on outside click or Escape
   useEffect(() => {
@@ -157,12 +192,12 @@ export function ContextMenu({ items, position, onClose }: ContextMenuProps) {
     };
   }, [onClose]);
 
-  return (
+  const menu = (
     <div
       ref={menuRef}
       role="menu"
       aria-label={t('common:aria.contextMenu')}
-      style={{ left: x, top: y }}
+      style={{ left: x, top: adjustedY }}
       className={[
         "fixed z-50 py-1 min-w-[160px]",
         "bg-bg-overlay border border-border rounded-lg",
@@ -175,4 +210,6 @@ export function ContextMenu({ items, position, onClose }: ContextMenuProps) {
       ))}
     </div>
   );
+
+  return createPortal(menu, document.body);
 }

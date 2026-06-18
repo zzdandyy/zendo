@@ -1,23 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useCallback, useRef, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { X, Loader2, CheckCircle2, XCircle, Ban } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
-
-// ─── Types ──────────────────────────────────────────────────────────────────
-
-export interface CrossTransferItem {
-  transferId: string;
-  srcLabel: string;
-  dstLabel: string;
-  status: "InProgress" | "Completed" | "Failed" | "Cancelled" | "Queued";
-  error?: string;
-  bytesTransferred: number;
-  totalBytes: number;
-  filesDone: number;
-  filesTotal: number;
-  speedBps: number;
-  etaSecs?: number;
-}
+import { useTransferStore } from "../../stores/transfer-store";
+import type { TransferEvent } from "../../types";
+import { getStatusString, formatSpeed, formatBytes } from "../../utils/format";
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
@@ -30,88 +17,58 @@ export function CrossTransferBar({ onTransferComplete }: CrossTransferBarProps) 
   const { t } = useTranslation();
   const cancelLabel = t("common:transfer.cancel", "Cancel");
   const dismissLabel = t("common:dismiss", "Dismiss");
-  const [items, setItems] = useState<CrossTransferItem[]>([]);
+
+  // Read cross-pane transfers from TransferStore (identified by sentinel session id).
+  // Select the raw Map first, then convert with useMemo — per CLAUDE.md:
+  // "Array.from(map.values()) in a Zustand selector creates a new array each
+  // evaluation → infinite loop. Fix: select the Map first, then convert to
+  // array with useMemo."
+  const transfers = useTransferStore((s) => s.transfers);
+  const items = useMemo(() => {
+    const result: TransferEvent[] = [];
+    for (const t of transfers.values()) {
+      if (t.sftp_session_id === "__cross__") {
+        result.push(t);
+      }
+    }
+    return result;
+  }, [transfers]);
+  const removeTransfer = useTransferStore((s) => s.removeTransfer);
+
+  // Track completed transfer IDs to fire onTransferComplete exactly once.
   const completedRef = useRef<Set<string>>(new Set());
 
-  // Listen for cross:transfer events
   useEffect(() => {
-    let aborted = false;
-    let unlisten: (() => void) | undefined;
-
-    (async () => {
-      try {
-        const { listen } = await import("@tauri-apps/api/event");
-        if (aborted) return;
-
-        const unsub = await listen<any>("cross:transfer", (event) => {
-          if (aborted) return;
-          const p = event.payload;
-          const item: CrossTransferItem = {
-            transferId: p.transfer_id,
-            srcLabel: p.src_label,
-            dstLabel: p.dst_label,
-            status: p.status,
-            error: p.error,
-            bytesTransferred: p.bytes_transferred,
-            totalBytes: p.total_bytes,
-            filesDone: p.files_done,
-            filesTotal: p.files_total,
-            speedBps: p.speed_bps,
-            etaSecs: p.eta_secs,
-          };
-
-          setItems((prev) => {
-            const idx = prev.findIndex((x) => x.transferId === item.transferId);
-            const next = [...prev];
-            if (idx >= 0) {
-              next[idx] = item;
-            } else {
-              next.push(item);
-            }
-
-            // Trigger refresh when a transfer completes
-            if (
-              (item.status === "Completed" || item.status === "Failed" || item.status === "Cancelled") &&
-              !completedRef.current.has(item.transferId)
-            ) {
-              completedRef.current.add(item.transferId);
-              // Auto-remove completed items after 5s
-              setTimeout(() => {
-                setItems((cur) => cur.filter((x) => x.transferId !== item.transferId));
-                completedRef.current.delete(item.transferId);
-              }, 5000);
-              onTransferComplete?.();
-            }
-
-            return next;
-          });
-        });
-
-        if (!aborted) unlisten = unsub;
-      } catch {
-        // Not in Tauri context
+    for (const item of items) {
+      const s = getStatusString(item.status);
+      if (
+        (s === "Completed" || s === "Failed" || s === "Cancelled") &&
+        !completedRef.current.has(item.transfer_id)
+      ) {
+        completedRef.current.add(item.transfer_id);
+        onTransferComplete?.();
       }
-    })();
-
-    return () => {
-      aborted = true;
-      unlisten?.();
-    };
-  }, [onTransferComplete]);
+    }
+  }, [items, onTransferComplete]);
 
   // Cancel
   const handleCancel = useCallback(async (transferId: string) => {
     try {
       await invoke("cross_cancel_transfer", { transferId });
     } catch (err) {
-      console.error("Failed to cancel transfer:", err);
+      console.error("Failed to cancel cross-transfer:", err);
     }
   }, []);
 
-  // Dismiss a completed/failed item
-  const handleDismiss = useCallback((transferId: string) => {
-    setItems((prev) => prev.filter((x) => x.transferId !== transferId));
-  }, []);
+  // Dismiss — remove from the store so it disappears from both the
+  // inline bar and the popover.
+  const handleDismiss = useCallback(
+    (transferId: string) => {
+      removeTransfer(transferId);
+      completedRef.current.delete(transferId);
+    },
+    [removeTransfer],
+  );
 
   if (items.length === 0) return null;
 
@@ -119,7 +76,7 @@ export function CrossTransferBar({ onTransferComplete }: CrossTransferBarProps) 
     <div className="flex flex-col border-t border-border bg-bg-subtle">
       {items.map((item) => (
         <TransferRow
-          key={item.transferId}
+          key={item.transfer_id}
           item={item}
           onCancel={handleCancel}
           onDismiss={handleDismiss}
@@ -140,28 +97,22 @@ function TransferRow({
   cancelLabel,
   dismissLabel,
 }: {
-  item: CrossTransferItem;
+  item: TransferEvent;
   onCancel: (id: string) => void;
   onDismiss: (id: string) => void;
   cancelLabel: string;
   dismissLabel: string;
 }) {
-  const { t } = useTranslation();
-
-  function formatSpeed(bps: number): string {
-    const s = formatSpeedValue(bps);
-    return t(`transfer.${s.unitKey}`, { value: s.value });
-  }
-
-  const isActive = item.status === "InProgress" || item.status === "Queued";
-  const isDone = item.status === "Completed";
-  const isError = item.status === "Failed" || item.status === "Cancelled";
+  const statusStr = getStatusString(item.status);
+  const isActive = statusStr === "InProgress" || statusStr === "Queued";
+  const isDone = statusStr === "Completed";
+  const isError = statusStr === "Failed" || statusStr === "Cancelled";
 
   const pct =
-    item.totalBytes > 0
-      ? Math.round((item.bytesTransferred / item.totalBytes) * 100)
-      : item.filesTotal > 0
-        ? Math.round((item.filesDone / item.filesTotal) * 100)
+    item.total_bytes > 0
+      ? Math.round((item.bytes_transferred / item.total_bytes) * 100)
+      : item.files_total > 0
+        ? Math.round((item.files_done / item.files_total) * 100)
         : 0;
 
   return (
@@ -173,12 +124,10 @@ function TransferRow({
 
       {/* Labels */}
       <span className="text-text-secondary truncate flex-1 min-w-0">
-        <span className="font-medium">{item.srcLabel}</span>
-        {" → "}
-        <span className="font-medium">{item.dstLabel}</span>
-        {item.filesTotal > 0 && (
+        <span className="font-medium">{item.name}</span>
+        {item.files_total > 0 && (
           <span className="text-text-muted ml-1">
-            ({item.filesDone}/{item.filesTotal})
+            ({item.files_done}/{item.files_total})
           </span>
         )}
       </span>
@@ -194,11 +143,20 @@ function TransferRow({
       )}
 
       {/* Speed */}
-      {isActive && item.speedBps > 0 && (
+      {isActive && item.speed_bps > 0 && (
         <span className="text-text-muted shrink-0 tabular-nums">
-          {formatSpeed(item.speedBps)}
+          {formatSpeed(item.speed_bps)}
         </span>
       )}
+
+      {/* Detail line: bytes + ETA for active, total bytes for completed */}
+      <span className="text-text-muted shrink-0 tabular-nums">
+        {isActive && item.total_bytes > 0
+          ? `${formatBytes(item.bytes_transferred)} / ${formatBytes(item.total_bytes)}`
+          : item.total_bytes > 0
+            ? formatBytes(item.total_bytes)
+            : ""}
+      </span>
 
       {/* Error message */}
       {isError && item.error && (
@@ -212,7 +170,7 @@ function TransferRow({
         <button
           type="button"
           className="p-0.5 text-text-muted hover:text-danger transition-colors shrink-0"
-          onClick={() => onCancel(item.transferId)}
+          onClick={() => onCancel(item.transfer_id)}
           title={cancelLabel}
         >
           <Ban size={12} />
@@ -222,7 +180,7 @@ function TransferRow({
         <button
           type="button"
           className="p-0.5 text-text-muted hover:text-text-secondary transition-colors shrink-0"
-          onClick={() => onDismiss(item.transferId)}
+          onClick={() => onDismiss(item.transfer_id)}
           title={dismissLabel}
         >
           <X size={12} />
@@ -230,12 +188,4 @@ function TransferRow({
       )}
     </div>
   );
-}
-
-// ─── Helpers ────────────────────────────────────────────────────────────────
-
-function formatSpeedValue(bytesPerSec: number): { value: string; unitKey: string } {
-  if (bytesPerSec >= 1_000_000) return { value: (bytesPerSec / 1_000_000).toFixed(1), unitKey: "speedMbs" };
-  if (bytesPerSec >= 1_000) return { value: (bytesPerSec / 1_000).toFixed(1), unitKey: "speedKbs" };
-  return { value: String(bytesPerSec), unitKey: "speedBps" };
 }

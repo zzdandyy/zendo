@@ -28,7 +28,9 @@ ensure_upstream() {
     git remote add "$UPSTREAM_REMOTE" "$UPSTREAM_URL"
   fi
   echo "→ 拉取 upstream 最新..."
-  git fetch "$UPSTREAM_REMOTE" --quiet
+  git fetch "$UPSTREAM_REMOTE" --quiet || {
+    echo "⚠️  fetch 失败，将使用本地缓存（数据可能不是最新）"
+  }
 }
 
 # ── 确定起始 commit ────────────────────────────────────────────────────────

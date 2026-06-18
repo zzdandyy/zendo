@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
-import { Upload, FolderPlus, FilePlus, RefreshCw, ChevronRight, Home, Loader2, Shield } from "lucide-react";
+import { Upload, RefreshCw, ChevronRight, Home, Loader2, Shield } from "lucide-react";
+import { useEffect, useRef } from "react";
 import type { FileSystemProvider } from "../../types/explorer";
 
 interface BreadcrumbSegment {
@@ -13,8 +14,6 @@ interface ExplorerToolbarProps {
   segments: BreadcrumbSegment[];
   loading: boolean;
   onRefresh: () => void;
-  onNewFolder: () => void;
-  onNewFile: () => void;
   onNavigate: (path: string) => void;
   onUpload: () => void;
   busy?: boolean;
@@ -33,8 +32,6 @@ export function ExplorerToolbar({
   segments,
   loading,
   onRefresh,
-  onNewFolder,
-  onNewFile,
   onNavigate,
   onUpload,
   busy,
@@ -46,6 +43,15 @@ export function ExplorerToolbar({
 }: ExplorerToolbarProps) {
   const { t } = useTranslation();
   const caps = provider.capabilities;
+  const breadcrumbRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll breadcrumb to the right when navigating deeper.
+  useEffect(() => {
+    const el = breadcrumbRef.current;
+    if (el && typeof el.scrollTo === "function") {
+      el.scrollTo({ left: el.scrollWidth, behavior: "smooth" });
+    }
+  }, [segments]);
 
   const iconBtn = [
     "flex items-center justify-center w-7 h-7 rounded-md shrink-0",
@@ -78,25 +84,42 @@ export function ExplorerToolbar({
         </button>
       )}
 
-      {/* Breadcrumb path */}
+      {/* Breadcrumb path — root always shown as first element */}
       <div
-        className="flex items-center gap-0 overflow-x-auto flex-1 min-w-0 mx-1"
+        ref={breadcrumbRef}
+        className="flex items-center gap-0 overflow-x-auto no-scrollbar flex-1 min-w-0 mx-1"
         aria-label={t("explorer.toolbar.currentPathAria")}
       >
+        {/* Root element */}
+        <span className="flex items-center shrink-0">
+          <button
+            onClick={() => onNavigate(provider.type === "s3" ? "" : "/")}
+            disabled={segments.length === 0}
+            title={provider.rootLabel()}
+            className={[
+              "px-1 py-0.5 rounded text-[length:var(--text-sm)]",
+              "transition-colors duration-[var(--duration-fast)]",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              segments.length === 0
+                ? "text-text-primary font-medium cursor-default"
+                : "text-text-muted hover:text-text-secondary hover:bg-bg-subtle/70 cursor-pointer",
+            ].join(" ")}
+          >
+            {provider.rootLabel()}
+          </button>
+        </span>
+
         {segments.map((seg, index) => {
           const isLast = index === segments.length - 1;
-          const isRoot = index === 0;
 
           return (
             <span key={`${seg.path}-${index}`} className="flex items-center shrink-0">
-              {!isRoot && (
-                <ChevronRight
-                  size={12}
-                  strokeWidth={2}
-                  className="text-text-muted/50 mx-0.5 shrink-0"
-                  aria-hidden="true"
-                />
-              )}
+              <ChevronRight
+                size={12}
+                strokeWidth={2}
+                className="text-text-muted/50 mx-0.5 shrink-0"
+                aria-hidden="true"
+              />
               <button
                 onClick={() => !isLast && onNavigate(seg.path)}
                 disabled={isLast}
@@ -110,7 +133,7 @@ export function ExplorerToolbar({
                     : "text-text-muted hover:text-text-secondary hover:bg-bg-subtle/70 cursor-pointer",
                 ].join(" ")}
               >
-                {isRoot ? provider.rootLabel() : seg.label}
+                {seg.label}
               </button>
             </span>
           );
@@ -141,34 +164,6 @@ export function ExplorerToolbar({
           className={iconBtn}
         >
           <Upload size={15} strokeWidth={1.8} aria-hidden="true" />
-        </button>
-      )}
-
-      {/* New file */}
-      {caps.canCreateFile && (
-        <button
-          data-testid="explorer-new-file"
-          onClick={onNewFile}
-          disabled={loading}
-          title={t("explorer.toolbar.newFile")}
-          aria-label={t("explorer.toolbar.newFile")}
-          className={iconBtn}
-        >
-          <FilePlus size={15} strokeWidth={1.8} aria-hidden="true" />
-        </button>
-      )}
-
-      {/* New folder */}
-      {caps.canCreateFolder && (
-        <button
-          data-testid="explorer-new-folder"
-          onClick={onNewFolder}
-          disabled={loading}
-          title={t("explorer.toolbar.newFolder")}
-          aria-label={t("explorer.toolbar.newFolder")}
-          className={iconBtn}
-        >
-          <FolderPlus size={15} strokeWidth={1.8} aria-hidden="true" />
         </button>
       )}
 

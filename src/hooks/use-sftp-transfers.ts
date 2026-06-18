@@ -159,4 +159,72 @@ export function useSftpTransfers() {
     return () => { aborted = true; unlisten?.(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [updateTransfer, setPopoverOpen, setHostLabel]);
+
+  // Listen for cross-pane transfer events — normalize into TransferEvent and
+  // feed TransferStore so they appear in the FAB / TransferPopover.
+  useEffect(() => {
+    let aborted = false;
+    let unlisten: (() => void) | undefined;
+
+    (async () => {
+      try {
+        const { listen } = await import("@tauri-apps/api/event");
+        if (aborted) return;
+
+        const unsub = await listen<any>("cross:transfer", (event) => {
+          const p = event.payload;
+          const transfer: TransferEvent = {
+            transfer_id: p.transfer_id,
+            sftp_session_id: "__cross__", // sentinel so cross-transfers are identifiable
+            name: p.name,
+            direction: "Download", // cross-pane has no intrinsic direction
+            status: normalizeCrossStatus(p.status, p.error),
+            error: p.error ?? null,
+            bytes_transferred: p.bytes_transferred,
+            total_bytes: p.total_bytes,
+            files_done: p.files_done,
+            files_total: p.files_total,
+            speed_bps: p.speed_bps,
+            eta_secs: p.eta_secs ?? null,
+            created_at: p.created_at,
+          };
+          updateTransfer(transfer);
+
+          // Auto-open popover when a new transfer starts
+          if (transfer.status === "InProgress" || transfer.status === "Queued") {
+            if (!useTransferStore.getState().popoverOpen) {
+              setPopoverOpen(true);
+            }
+          }
+        });
+
+        if (aborted) { unsub(); } else { unlisten = unsub; }
+      } catch { /* Tauri API not available */ }
+    })();
+
+    return () => { aborted = true; unlisten?.(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [updateTransfer, setPopoverOpen]);
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function normalizeCrossStatus(
+  status: string,
+  error?: string | null,
+): TransferEvent["status"] {
+  switch (status) {
+    case "Queued":
+      return "Queued";
+    case "InProgress":
+      return "InProgress";
+    case "Completed":
+      return "Completed";
+    case "Failed":
+      return { Failed: error || "Transfer failed" };
+    case "Cancelled":
+      return "Cancelled";
+    default:
+      return { Failed: error || "Unknown status" };
+  }
 }

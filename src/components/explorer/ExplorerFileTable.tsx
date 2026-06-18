@@ -54,9 +54,11 @@ interface ExplorerFileTableProps {
     recursive: boolean,
   ) => Promise<ChmodResult | void>;
   creatingFile?: boolean;
+  onStartCreateFile?: () => void;
   onCreateFile?: (name: string) => void;
   onCancelCreateFile?: () => void;
   creatingFolder?: boolean;
+  onStartCreateFolder?: () => void;
   onCreateFolder?: (name: string) => void;
   onCancelCreateFolder?: () => void;
   onPaste?: () => void;
@@ -70,7 +72,6 @@ interface ExplorerFileTableProps {
   /** Current directory path/prefix. Used to reset scroll on navigation while
    *  preserving it across same-directory refreshes (e.g. after a chmod). */
   currentPath?: string;
-  loading?: boolean;
   busy?: boolean;
 }
 
@@ -283,9 +284,11 @@ export function ExplorerFileTable({
   onPresignUrl,
   onApplyPermissions,
   creatingFolder,
+  onStartCreateFolder,
   onCreateFolder,
   onCancelCreateFolder,
   creatingFile,
+  onStartCreateFile,
   onCreateFile,
   onCancelCreateFile,
   onPaste,
@@ -293,7 +296,6 @@ export function ExplorerFileTable({
   onCopyEntries,
   onDragOut,
   currentPath,
-  loading,
 }: ExplorerFileTableProps) {
   const { t } = useTranslation();
   const caps = provider.capabilities;
@@ -637,10 +639,10 @@ export function ExplorerFileTable({
         items.push({ label: "", onClick: () => {}, separator: true, disabled: true });
       }
       if (caps.canCreateFile) {
-        items.push({ label: t("explorer.contextMenu.newFile"), icon: File, onClick: () => onCreateFile?.("") || document.dispatchEvent(new CustomEvent("explorer:new-file")) });
+        items.push({ label: t("explorer.contextMenu.newFile"), icon: FilePlus, onClick: () => onStartCreateFile?.() });
       }
       if (caps.canCreateFolder) {
-        items.push({ label: t("explorer.contextMenu.newFolder"), icon: FolderPlus, onClick: () => onCreateFolder?.("") || document.dispatchEvent(new CustomEvent("explorer:new-folder")) });
+        items.push({ label: t("explorer.contextMenu.newFolder"), icon: FolderPlus, onClick: () => onStartCreateFolder?.() });
       }
       return items;
     }
@@ -666,6 +668,23 @@ export function ExplorerFileTable({
           items.push({ label: t("explorer.contextMenu.paste"), icon: ClipboardPaste, onClick: () => onPaste?.() });
         }
       }
+      if (caps.canCreateFile || caps.canCreateFolder) {
+        if (caps.canCreateFile) {
+          items.push({
+            label: t("explorer.contextMenu.newFile"),
+            icon: FilePlus,
+            onClick: () => onStartCreateFile?.(),
+          });
+        }
+        if (caps.canCreateFolder) {
+          items.push({
+            label: t("explorer.contextMenu.newFolder"),
+            icon: FolderPlus,
+            onClick: () => onStartCreateFolder?.(),
+          });
+        }
+      }
+
       if (caps.canDelete) {
         items.push({
           label: t("explorer.contextMenu.deleteN", { count }),
@@ -758,6 +777,23 @@ export function ExplorerFileTable({
       });
     }
 
+    if (caps.canCreateFile || caps.canCreateFolder) {
+      if (caps.canCreateFile) {
+        items.push({
+          label: t("explorer.contextMenu.newFile"),
+          icon: FilePlus,
+          onClick: () => onStartCreateFile?.(),
+        });
+      }
+      if (caps.canCreateFolder) {
+        items.push({
+          label: t("explorer.contextMenu.newFolder"),
+          icon: FolderPlus,
+          onClick: () => onStartCreateFolder?.(),
+        });
+      }
+    }
+
     if (caps.canDelete) {
       items.push({
         label: t("explorer.contextMenu.delete"),
@@ -786,34 +822,6 @@ export function ExplorerFileTable({
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm",
     sortBy === col ? "text-text-secondary" : "",
   ].join(" ");
-
-  // ─── Loading state ───────────────────────────────────────────────────────
-  // Only show the skeleton on a genuine first load (no entries yet). When
-  // refreshing a directory that already has entries, keep the list mounted so
-  // the scroll position survives (the toolbar shows a refresh spinner instead).
-
-  if (loading && entries.length === 0) {
-    return (
-      <div className="flex-1 overflow-y-auto no-scrollbar">
-        <div className="flex flex-col gap-1 p-2">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <div
-              key={i}
-              className="flex items-center gap-3 px-3 py-2 rounded-lg animate-pulse"
-            >
-              <div className="w-4 h-4 rounded bg-bg-subtle shrink-0" />
-              <div className="h-3 rounded bg-bg-subtle" style={{ width: `${40 + (i % 5) * 12}%` }} />
-              <div className="ml-auto flex gap-8">
-                <div className="w-12 h-3 rounded bg-bg-subtle" />
-                <div className="w-16 h-3 rounded bg-bg-subtle" />
-                <div className="w-16 h-3 rounded bg-bg-subtle" />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
 
   // ─── Render ───────────────────────────────────────────────────────────────
 
@@ -895,7 +903,7 @@ export function ExplorerFileTable({
             <div className="flex items-center gap-2">
               {caps.canCreateFile && (
                 <button
-                  onClick={() => document.dispatchEvent(new CustomEvent("explorer:new-file"))}
+                  onClick={() => onStartCreateFile?.()}
                   className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[length:var(--text-xs)] font-medium text-text-muted hover:text-text-secondary hover:bg-bg-subtle transition-colors duration-[var(--duration-fast)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <FilePlus size={13} strokeWidth={2} aria-hidden="true" />
@@ -904,7 +912,7 @@ export function ExplorerFileTable({
               )}
               {caps.canCreateFolder && (
                 <button
-                  onClick={() => document.dispatchEvent(new CustomEvent("explorer:new-folder"))}
+                  onClick={() => onStartCreateFolder?.()}
                   className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[length:var(--text-xs)] font-medium text-text-muted hover:text-text-secondary hover:bg-bg-subtle transition-colors duration-[var(--duration-fast)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <FolderPlus size={13} strokeWidth={2} aria-hidden="true" />
