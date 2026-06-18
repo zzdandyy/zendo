@@ -20,13 +20,13 @@ function renderDialog(over: Partial<React.ComponentProps<typeof DropOverwriteDia
 describe("DropOverwriteDialog", () => {
   it("shows singular copy and the conflicting name for one conflict", () => {
     renderDialog({ conflicts: ["report.pdf"] });
-    expect(screen.getByText("Overwrite item?")).toBeInTheDocument();
+    expect(screen.getByText("dropOverwrite.titleSingle")).toBeInTheDocument();
     expect(screen.getByText("report.pdf")).toBeInTheDocument();
   });
 
   it("shows plural copy and lists every conflict for many", () => {
     renderDialog({ conflicts: ["a.txt", "b.txt", "c.txt"] });
-    expect(screen.getByText("Overwrite 3 items?")).toBeInTheDocument();
+    expect(screen.getByText("dropOverwrite.titleMulti")).toBeInTheDocument();
     for (const n of ["a.txt", "b.txt", "c.txt"]) {
       expect(screen.getByText(n)).toBeInTheDocument();
     }
@@ -34,9 +34,7 @@ describe("DropOverwriteDialog", () => {
 
   it("explains that folders are merged rather than replaced", () => {
     renderDialog();
-    expect(
-      screen.getByText(/folders are merged, replacing only same-named files/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText("dropOverwrite.hint")).toBeInTheDocument();
   });
 
   it("fires onConfirm only when Overwrite is clicked", () => {

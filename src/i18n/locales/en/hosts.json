@@ -226,8 +226,6 @@
     "bucket": "Bucket",
     "endpointUrl": "Endpoint URL",
     "appearance": "Appearance",
-    "group": "Group",
-    "noGroup": "No group",
     "environment": "Environment",
     "none": "None",
     "color": "Color",

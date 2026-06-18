@@ -36,25 +36,73 @@ export function getTabType(tab: UnifiedTab): string {
 
 // ─── Store ──────────────────────────────────────────────────────────────────
 
+// ─── Pinned tab persistence types ─────────────────────────────────────────
+
+export interface PinnedPaneDescriptor {
+  /** undefined = local terminal; otherwise the saved host ID. */
+  hostId?: string;
+  label: string;
+  /** Per-pane accent colour (OKLCH). */
+  accent?: string;
+}
+
+export interface PinnedSplitDescriptor {
+  direction: "horizontal" | "vertical";
+  ratio: number;
+  children: [PinnedLayoutNode, PinnedLayoutNode];
+}
+
+export type PinnedLayoutNode =
+  | ({ type: "pane" } & PinnedPaneDescriptor)
+  | ({ type: "split" } & PinnedSplitDescriptor);
+
+export interface PinnedFloatingPaneDescriptor {
+  hostId?: string;
+  label: string;
+  accent?: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface PinnedTabDescriptor {
+  type: "terminal";
+  layout: PinnedLayoutNode;
+  /** Tab label (e.g. "Workplace 2" or the single session label). */
+  label: string;
+  /** Floating panes that were popped out of the layout tree. */
+  floatingPanes?: PinnedFloatingPaneDescriptor[];
+}
+
 interface TabState {
   tabs: Map<string, UnifiedTab>;
   tabOrder: string[];
   /** null = Home panel is shown instead of a tab. */
   activeTabId: string | null;
+  /** Tab IDs that are currently pinned. */
+  pinnedTabIds: Set<string>;
 
   addTab: (tab: UnifiedTab) => void;
+  /** Add a tab without activating it (used for pinned-tab restore). */
+  restoreTab: (tab: UnifiedTab) => void;
   removeTab: (id: string) => void;
   /** Pass null to deactivate all tabs and show the Home panel. */
   setActiveTab: (id: string | null) => void;
   updateTabLabel: (id: string, label: string) => void;
   /** Swap a tab's ID in-place (used by SFTP sudo toggle when session reopens). */
   replaceTabId: (oldId: string, newId: string) => void;
+  pinTab: (id: string) => void;
+  unpinTab: (id: string) => void;
+  /** Bulk-set pinned IDs (used on restore). */
+  setPinnedTabIds: (ids: string[]) => void;
 }
 
 export const useTabStore = create<TabState>((set) => ({
   tabs: new Map<string, UnifiedTab>(),
   tabOrder: [],
   activeTabId: null,
+  pinnedTabIds: new Set<string>(),
 
   addTab: (tab) =>
     set((state) => {
@@ -64,6 +112,16 @@ export const useTabStore = create<TabState>((set) => ({
         ? state.tabOrder
         : [...state.tabOrder, tab.id];
       return { tabs, tabOrder, activeTabId: tab.id };
+    }),
+
+  restoreTab: (tab) =>
+    set((state) => {
+      const tabs = new Map(state.tabs);
+      tabs.set(tab.id, tab);
+      const tabOrder = state.tabOrder.includes(tab.id)
+        ? state.tabOrder
+        : [...state.tabOrder, tab.id];
+      return { tabs, tabOrder };
     }),
 
   removeTab: (id) =>
@@ -103,6 +161,9 @@ export const useTabStore = create<TabState>((set) => ({
       if (!tab) return state;
       const tabs = new Map(state.tabs);
       tabs.set(id, { ...tab, label });
+      if (state.pinnedTabIds.has(id)) {
+        void import("./pinned-sync").then((m) => m.syncPinnedTabs());
+      }
       return { tabs };
     }),
 
@@ -117,6 +178,25 @@ export const useTabStore = create<TabState>((set) => ({
       const activeTabId = state.activeTabId === oldId ? newId : state.activeTabId;
       return { tabs, tabOrder, activeTabId };
     }),
+
+  pinTab: (id) =>
+    set((state) => {
+      const s = new Set(state.pinnedTabIds);
+      s.add(id);
+      void import("./pinned-sync").then((m) => m.syncPinnedTabs());
+      return { pinnedTabIds: s };
+    }),
+
+  unpinTab: (id) =>
+    set((state) => {
+      const s = new Set(state.pinnedTabIds);
+      s.delete(id);
+      void import("./pinned-sync").then((m) => m.syncPinnedTabs());
+      return { pinnedTabIds: s };
+    }),
+
+  setPinnedTabIds: (ids) =>
+    set({ pinnedTabIds: new Set(ids) }),
 }));
 
 // ─── Domain store sync ──────────────────────────────────────────────────────

@@ -1,8 +1,9 @@
 import { create } from "zustand";
 import i18next from "../i18n";
+import type { PinnedTabDescriptor } from "./tab-store";
 
 export type CursorStyle = "block" | "bar" | "underline";
-export type ThemeMode = "dark" | "light";
+export type ThemeMode = "dark" | "brass" | "light";
 /** Which mouse button pastes the clipboard into the terminal (#71). */
 export type PasteButton = "none" | "right" | "middle";
 /** What double-clicking a file in the Explorer does. */
@@ -30,6 +31,7 @@ interface SettingsState {
   accentHue: number;
   accentCustom: AccentCustom | null;
   interfaceFont: string;
+  interfaceFontSize: number;
 
   // Updates
   autoUpdate: boolean;
@@ -60,6 +62,9 @@ interface SettingsState {
   // i18n
   lang: "en" | "zh";
 
+  // Pinned tabs (persisted across restarts)
+  pinnedTabs: PinnedTabDescriptor[];
+
   // State
   loaded: boolean;
 
@@ -69,6 +74,7 @@ interface SettingsState {
   setAccentHue: (hue: number) => void;
   setAccentCustom: (custom: AccentCustom | null) => void;
   setInterfaceFont: (font: string) => void;
+  setInterfaceFontSize: (size: number) => void;
   setAutoUpdate: (enabled: boolean) => void;
   setSkippedUpdateVersion: (version: string) => void;
   setTerminalFontSize: (size: number) => void;
@@ -85,6 +91,7 @@ interface SettingsState {
   updateEditor: (id: string, patch: Partial<Omit<EditorConfig, "id">>) => void;
   removeEditor: (id: string) => void;
   setDefaultEditor: (id: string | null) => void;
+  setPinnedTabs: (tabs: PinnedTabDescriptor[]) => void;
   loadSettings: () => Promise<void>;
 }
 
@@ -94,16 +101,18 @@ const DEFAULTS = {
   accentHue: 250,
   accentCustom: null as AccentCustom | null,
   interfaceFont: "'Geist', system-ui, sans-serif",
+  interfaceFontSize: 15,
   autoUpdate: true,
   skippedUpdateVersion: null as string | null,
   terminalFontSize: 14,
-  terminalFontFamily: "'JetBrains Mono', 'Fira Code', 'SF Mono', Menlo, monospace",
+  terminalFontFamily: "'JB Mono NF', 'JetBrains Mono', 'FiraCode Nerd Font', 'Fira Code', 'SF Mono', Menlo, monospace",
   terminalCursorStyle: "bar" as CursorStyle,
   terminalCursorBlink: true,
   terminalLineHeight: 1.2,
   terminalScrollback: 5000,
   terminalCopyOnSelect: false,
   terminalPasteButton: "none" as PasteButton,
+  pinnedTabs: [] as PinnedTabDescriptor[],
   explorerDoubleClickAction: "download" as DoubleClickAction,
   transferConcurrency: 3,
   editors: [] as EditorConfig[],
@@ -119,8 +128,9 @@ const DEFAULTS = {
  * default when the attribute is absent (e.g. a plain web/dev context).
  */
 function initialThemeMode(): ThemeMode {
-  if (typeof document !== "undefined" && document.documentElement.dataset.theme === "light") {
-    return "light";
+  if (typeof document !== "undefined") {
+    const t = document.documentElement.dataset.theme;
+    if (t === "light" || t === "brass") return t;
   }
   return DEFAULTS.themeMode;
 }
@@ -165,6 +175,15 @@ function initialInterfaceFont(): string {
   return DEFAULTS.interfaceFont;
 }
 
+function initialInterfaceFontSize(): number {
+  if (typeof document !== "undefined") {
+    const v = document.documentElement.style.getPropertyValue("--text-base").trim();
+    const n = Number(v);
+    if (v && !Number.isNaN(n)) return n;
+  }
+  return DEFAULTS.interfaceFontSize;
+}
+
 /** Persist a single setting to the backend. Fire-and-forget. */
 function persist(key: string, value: string) {
   void (async () => {
@@ -206,6 +225,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   accentHue: initialAccentHue(),
   accentCustom: initialAccentCustom(),
   interfaceFont: initialInterfaceFont(),
+  interfaceFontSize: initialInterfaceFontSize(),
   loaded: false,
   lang: DEFAULTS.lang,
 
@@ -238,6 +258,12 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   setInterfaceFont: (font) => {
     set({ interfaceFont: font });
     persist("app_interface_font", font);
+  },
+
+  setInterfaceFontSize: (n) => {
+    const clamped = Math.max(11, Math.min(20, n));
+    set({ interfaceFontSize: clamped });
+    persist("app_interface_font_size", String(clamped));
   },
 
   setAutoUpdate: (enabled) => {
@@ -338,6 +364,11 @@ export const useSettingsStore = create<SettingsState>((set) => ({
     return { defaultEditorId: id };
   }),
 
+  setPinnedTabs: (tabs) => {
+    set({ pinnedTabs: tabs });
+    persist("app_pinned_tabs", JSON.stringify(tabs));
+  },
+
   loadSettings: async () => {
     try {
       const { invoke } = await import("@tauri-apps/api/core");
@@ -367,9 +398,38 @@ export const useSettingsStore = create<SettingsState>((set) => ({
           case "explorer_double_click_action": updates.explorerDoubleClickAction = value === "open" ? "open" : "download"; break;
           case "transfer_concurrency": updates.transferConcurrency = Number(value) || DEFAULTS.transferConcurrency; break;
           case "app_interface_font": updates.interfaceFont = value || DEFAULTS.interfaceFont; break;
+          case "app_interface_font_size": updates.interfaceFontSize = Number(value) || DEFAULTS.interfaceFontSize; break;
           case "app_auto_update": updates.autoUpdate = value !== "false"; break;
           case "app_skipped_update": updates.skippedUpdateVersion = value || null; break;
           case "app_lang": updates.lang = value === "zh" ? "zh" : "en"; break;
+          case "app_pinned_tabs": {
+            try {
+              const parsed = JSON.parse(value);
+              if (Array.isArray(parsed)) {
+                updates.pinnedTabs = parsed
+                  .filter(
+                    (p: unknown) =>
+                      typeof p === "object" && p != null &&
+                      "type" in (p as Record<string, unknown>) && "label" in (p as Record<string, unknown>),
+                  )
+                  .map((p: any) => {
+                    // Migrate old flat format (no layout) to new layout format
+                    if (p.layout) return p as PinnedTabDescriptor;
+                    return {
+                      type: "terminal",
+                      label: p.label ?? "",
+                      layout: {
+                        type: "pane",
+                        hostId: p.hostId,
+                        label: p.label ?? "",
+                        accent: p.accent,
+                      },
+                    } satisfies PinnedTabDescriptor;
+                  });
+              }
+            } catch { /* ignore malformed */ }
+            break;
+          }
           case "editors_config": {
             try {
               const parsed = JSON.parse(value) as { editors?: EditorConfig[]; defaultEditorId?: string | null };

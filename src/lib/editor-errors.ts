@@ -5,11 +5,11 @@
 // swallowed these entirely, so launch failures looked like "nothing happened"
 // (issues #12, #45, #56). This pulls out a message worth showing in a toast.
 
-export function editorLaunchErrorMessage(err: unknown): string {
+export function editorLaunchErrorMessage(err: unknown, fallback: string): string {
   if (err && typeof err === "object" && "message" in err) {
     const msg = String((err as { message: unknown }).message).trim();
     if (msg) return msg;
   }
   if (typeof err === "string" && err.trim()) return err;
-  return "Couldn't open the editor. Configure one in Settings → Editors.";
+  return fallback;
 }

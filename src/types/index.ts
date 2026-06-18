@@ -7,7 +7,6 @@ export type {
   SshOutputPayload,
   SshStatusPayload,
   SavedHost,
-  HostGroup,
   SshConfigEntry,
   ImportResult,
   SshKeyInfo,

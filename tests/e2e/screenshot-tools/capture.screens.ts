@@ -22,10 +22,8 @@ import {
     fillPasswordHostForm,
     getHostId,
     openNewHostModal,
-    selectHostGroup,
     waitForModalClosed,
 } from "../helpers/host.js";
-import { fillGroupAndSave, getGroupId, openNewGroupModal } from "../helpers/groups.js";
 import { fillRuleAndSave, gotoPortForwardingPage, openNewRuleDialog } from "../helpers/port-forwards.js";
 import { runCommand, typeIntoTerminal, waitForAnyTerminal, waitForTerminalText } from "../helpers/terminal.js";
 import { cmd, cmdShift } from "../helpers/keyboard.js";
@@ -298,7 +296,7 @@ async function snap(name: string, opts: { moveAway?: boolean } = {}): Promise<vo
     console.log(`[capture] saved ${name}.png`);
 }
 
-async function addHost(label: string, groupId?: string): Promise<void> {
+async function addHost(label: string): Promise<void> {
     await openNewHostModal();
     await fillPasswordHostForm({
         label,
@@ -307,7 +305,6 @@ async function addHost(label: string, groupId?: string): Promise<void> {
         username: SSH_USER,
         password: SSH_PASS,
     });
-    if (groupId) await selectHostGroup(groupId);
     await clickSave();
     await waitForModalClosed();
 }
@@ -337,18 +334,10 @@ describe("screenshots", () => {
         await resetApp();
         await waitForDashboard();
 
-        // Groups + hosts for the dashboard shot.
-        await openNewGroupModal();
-        await fillGroupAndSave("Production");
-        await openNewGroupModal();
-        await fillGroupAndSave("Testing");
-        // Capture group ids on the dashboard to target the host modal's group
-        // option (host-modal-group-option-<id>) deterministically.
-        const productionId = await getGroupId("Production");
-        const testingId = await getGroupId("Testing");
-        await addHost("App", productionId);
-        await addHost("Database", productionId);
-        await addHost("Local Testing", testingId);
+        // Hosts for the dashboard shot.
+        await addHost("App");
+        await addHost("Database");
+        await addHost("Local Testing");
 
         // Cloud storage (S3) connections — saved against the MinIO sidecar.
         await addS3("Prod Artifacts");

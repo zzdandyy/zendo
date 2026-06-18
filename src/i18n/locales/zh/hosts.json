@@ -226,8 +226,6 @@
     "bucket": "Bucket",
     "endpointUrl": "Endpoint URL",
     "appearance": "外观",
-    "group": "分组",
-    "noGroup": "无分组",
     "environment": "环境",
     "none": "无",
     "color": "颜色",

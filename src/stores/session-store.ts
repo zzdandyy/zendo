@@ -144,6 +144,10 @@ interface SessionState {
   updateFloatingPosition: (tabId: string, sessionId: string, x: number, y: number) => void;
   /** Update the size of a floating pane. */
   updateFloatingSize: (tabId: string, sessionId: string, width: number, height: number) => void;
+  /** Set the border colour for a single pane. */
+  setAccent: (sessionId: string, color: string) => void;
+  /** Atomically inject a fully-built layout tree + sessions for pinned tab restore. */
+  restorePinnedTab: (tabId: string, layout: LayoutNode, sessions: Array<{ id: string; session: Session }>, label: string, floatingPanes?: FloatingPaneInfo[]) => void;
 }
 
 export interface FloatingPaneInfo {
@@ -153,6 +157,9 @@ export interface FloatingPaneInfo {
   width: number;
   height: number;
 }
+
+/** Default pane border colour — soft white. */
+export const DEFAULT_ACCENT = "oklch(0.80 0 0)";
 
 // ─── Store ───────────────────────────────────────────────────────────────────
 
@@ -177,6 +184,7 @@ export const useSessionStore = create<SessionState>((set) => ({
         sessionType: sessionType ?? "ssh",
         status: "Connected",
         label,
+        accent: DEFAULT_ACCENT,
       });
 
       // New connection = new layout tree entry
@@ -245,6 +253,7 @@ export const useSessionStore = create<SessionState>((set) => ({
         }
       }
 
+      void import("./pinned-sync").then((m) => m.syncPinnedTabs());
       return {
         sessions,
         activeSessionId,
@@ -302,6 +311,7 @@ export const useSessionStore = create<SessionState>((set) => ({
             sessionType: sourceSession.sessionType,
             status: "Connected",
             label: sourceSession.label,
+            accent: sourceSession.accent ?? DEFAULT_ACCENT,
           });
         }
       }
@@ -328,6 +338,7 @@ export const useSessionStore = create<SessionState>((set) => ({
 
       tabs.set(tabId, { ...tab, layout: newLayout, label });
 
+      void import("./pinned-sync").then((m) => m.syncPinnedTabs());
       return { sessions, tabs, activeSessionId: newSessionId };
     }),
 
@@ -343,6 +354,7 @@ export const useSessionStore = create<SessionState>((set) => ({
 
       const tabs = new Map(state.tabs);
       tabs.set(tabId, { ...tab, layout: newLayout });
+      void import("./pinned-sync").then((m) => m.syncPinnedTabs());
       return { tabs };
     }),
 
@@ -353,6 +365,7 @@ export const useSessionStore = create<SessionState>((set) => ({
       const newLayout = updateRatioAtPath(tab.layout, path, ratio);
       const tabs = new Map(state.tabs);
       tabs.set(tabId, { ...tab, layout: newLayout });
+      import("./pinned-sync").then((m) => m.syncPinnedTabsThrottled());
       return { tabs };
     }),
 
@@ -369,17 +382,8 @@ export const useSessionStore = create<SessionState>((set) => ({
       const sessions = new Map(state.sessions);
       sessions.set(sessionId, { ...session, label });
 
-      // Also update the tab label if this session is the first in its owning tab
-      const tabs = new Map(state.tabs);
-      const ownerTabId = findTabForSession(state.tabs, sessionId);
-      if (ownerTabId) {
-        const tab = tabs.get(ownerTabId);
-        if (tab) {
-          tabs.set(ownerTabId, { ...tab, label });
-        }
-      }
-
-      return { sessions, tabs };
+      void import("./pinned-sync").then((m) => m.syncPinnedTabs());
+      return { sessions };
     }),
 
   floatPane: (sessionId) =>
@@ -413,6 +417,7 @@ export const useSessionStore = create<SessionState>((set) => ({
         },
       ]);
 
+      void import("./pinned-sync").then((m) => m.syncPinnedTabs());
       return { tabs, floatingPanes };
     }),
 
@@ -454,6 +459,7 @@ export const useSessionStore = create<SessionState>((set) => ({
         }
       }
 
+      void import("./pinned-sync").then((m) => m.syncPinnedTabs());
       return {
         sessions,
         floatingPanes,
@@ -472,6 +478,7 @@ export const useSessionStore = create<SessionState>((set) => ({
         tabId,
         list.map((fp) => (fp.sessionId === sessionId ? { ...fp, x, y } : fp)),
       );
+      import("./pinned-sync").then((m) => m.syncPinnedTabsThrottled());
       return { floatingPanes };
     }),
 
@@ -484,6 +491,32 @@ export const useSessionStore = create<SessionState>((set) => ({
         tabId,
         list.map((fp) => (fp.sessionId === sessionId ? { ...fp, width: Math.max(200, width), height: Math.max(120, height) } : fp)),
       );
+      import("./pinned-sync").then((m) => m.syncPinnedTabsThrottled());
       return { floatingPanes };
+    }),
+
+  setAccent: (sessionId, color) =>
+    set((state) => {
+      const session = state.sessions.get(sessionId);
+      if (!session) return state;
+      const sessions = new Map(state.sessions);
+      sessions.set(sessionId, { ...session, accent: color });
+      void import("./pinned-sync").then((m) => m.syncPinnedTabs());
+      return { sessions };
+    }),
+
+  restorePinnedTab: (tabId, layout, sessions, label, floatingPanes) =>
+    set((state) => {
+      const newSessions = new Map(state.sessions);
+      for (const { id, session } of sessions) {
+        newSessions.set(id, session);
+      }
+      const tabs = new Map(state.tabs);
+      tabs.set(tabId, { layout, label });
+      const newFloatingPanes = new Map(state.floatingPanes);
+      if (floatingPanes && floatingPanes.length > 0) {
+        newFloatingPanes.set(tabId, floatingPanes);
+      }
+      return { sessions: newSessions, tabs, floatingPanes: newFloatingPanes };
     }),
 }));

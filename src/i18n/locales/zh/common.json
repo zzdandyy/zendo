@@ -9,12 +9,28 @@
     "add": "添加",
     "remove": "移除",
     "search": "搜索",
-    "retry": "重试"
+    "retry": "重试",
+    "apply": "应用",
+    "clear": "清除",
+    "paste": "粘贴",
+    "copy": "复制",
+    "cut": "剪切",
+    "rename": "重命名",
+    "download": "下载",
+    "refresh": "刷新"
   },
   "status": {
     "loading": "加载中…",
     "error": "错误",
-    "success": "成功"
+    "success": "成功",
+    "queued": "等待中",
+    "done": "完成",
+    "cancelled": "已取消",
+    "failed": "失败",
+    "calculating": "计算中…",
+    "active": "{count} 个进行中",
+    "queued_count": "{count} 个等待中",
+    "done_count": "{count} 个已完成"
   },
   "nav": {
     "hosts": "连接",
@@ -26,6 +42,8 @@
   "tab": {
     "rename": "重命名",
     "duplicate": "复制",
+    "pin": "固定标签",
+    "unpin": "取消固定",
     "newTab": "新建标签",
     "close": "关闭 {name}",
     "home": "主页",
@@ -38,15 +56,325 @@
   "transfer": {
     "swapSides": "交换左右",
     "resizeHandle": "调整栏宽",
-    "cancel": "取消"
+    "cancel": "取消",
+    "speedBps": "{value} B/s",
+    "speedKbs": "{value} KB/s",
+    "speedMbs": "{value} MB/s"
   },
   "pane": {
     "localLabel": "本地",
     "notConnected": "未连接",
     "showHidden": "显示隐藏文件",
-    "hideHidden": "隐藏隐藏文件"
+    "hideHidden": "隐藏隐藏文件",
+    "connect": "连接…",
+    "hosts": "主机",
+    "cloudStorage": "云存储",
+    "unknown": "未知"
+  },
+  "explorer": {
+    "toolbar": {
+      "goToRoot": "转到 {root}",
+      "goToRootAria": "转到根目录",
+      "currentPathAria": "当前路径",
+      "navigateTo": "导航到 {path}",
+      "operationInProgress": "操作进行中",
+      "uploadFile": "上传文件",
+      "newFile": "新建文件",
+      "newFolder": "新建文件夹",
+      "refresh": "刷新",
+      "sudoEnable": "启用 sudo 模式",
+      "sudoDisable": "禁用 sudo 模式"
+    },
+    "dropZone": {
+      "uploadLabel": "拖放文件以上传",
+      "dropToUpload": "拖放文件以上传",
+      "dropToUploadInto": "拖放到 {folder} 以上传"
+    },
+    "fileTable": {
+      "columns": {
+        "name": "名称",
+        "size": "大小",
+        "modified": "修改时间",
+        "permissions": "权限",
+        "class": "存储类别"
+      },
+      "directoryContents": "目录内容",
+      "renameFileAria": "重命名文件",
+      "newFolderNameAria": "新文件夹名称",
+      "newFileNameAria": "新文件名称",
+      "newFolderPlaceholder": "文件夹名称",
+      "newFilePlaceholder": "文件.txt",
+      "emptyFolder": "此文件夹为空",
+      "rightClickHint": "右键查看更多选项"
+    },
+    "contextMenu": {
+      "paste": "粘贴",
+      "newFile": "新建文件",
+      "newFolder": "新建文件夹",
+      "copyN": "复制 {count} 个项目",
+      "cutN": "剪切 {count} 个项目",
+      "deleteN": "删除 {count} 个项目",
+      "editIn": "在 {editorName} 中编辑",
+      "openWith": "打开方式",
+      "download": "下载",
+      "downloadFolder": "下载文件夹",
+      "copyPresignedUrl": "复制预签名 URL",
+      "rename": "重命名",
+      "copyPath": "复制路径",
+      "copy": "复制",
+      "cut": "剪切",
+      "properties": "属性",
+      "delete": "删除"
+    },
+    "deleteConfirm": {
+      "titleSingleFile": "删除文件",
+      "titleSingleDir": "删除目录",
+      "titleMulti": "删除 {count} 个项目",
+      "bodySingleFile": "{name} 将被永久删除。",
+      "bodySingleDir": "{name} 将被永久删除。内部所有内容也将被移除。",
+      "bodyMulti": "{count} 个项目将被永久删除。",
+      "bodyMultiWithDirs": "{count} 个项目将被永久删除。目录及其所有内容将被移除。",
+      "cancel": "取消",
+      "confirmSingle": "删除",
+      "confirmMulti": "删除 {count} 个项目"
+    },
+    "dragGhost": {
+      "move": "移动 {count} 个项目",
+      "copy": "复制 {count} 个项目",
+      "copyHint": "· ⌥ 复制"
+    },
+    "properties": {
+      "title": "{name} 的属性",
+      "type": "类型",
+      "typeFile": "文件",
+      "typeDir": "目录",
+      "typeSymlink": "符号链接",
+      "size": "大小",
+      "location": "位置",
+      "path": "路径",
+      "modified": "修改时间",
+      "class": "存储类别",
+      "copyPath": "复制路径",
+      "permissions": "权限",
+      "permissionsReadOnly": "只读 (符号链接)",
+      "read": "读",
+      "write": "写",
+      "execute": "执行",
+      "owner": "所有者",
+      "group": "组",
+      "other": "其他",
+      "octal": "八进制",
+      "octalAria": "八进制权限",
+      "specialBitsSet": "已设置特殊位 ({bits})；此处不可编辑，{behavior}。",
+      "specialBitsPreserved": "应用时保留",
+      "specialBitsDropped": "递归应用时丢弃",
+      "applyRecursive": "递归应用权限到所有内容",
+      "apply": "应用",
+      "cancel": "取消",
+      "close": "关闭",
+      "failedChmod": "更改权限失败"
+    },
+    "errors": {
+      "operationFailed": "操作失败",
+      "listDirFailed": "列出目录失败",
+      "uploadFailed": "上传失败",
+      "downloadFailed": "下载失败",
+      "deleteFailed": "删除失败",
+      "createFileFailed": "创建文件失败",
+      "createFolderFailed": "创建文件夹失败",
+      "pasteFailed": "粘贴失败",
+      "dragOutFailed": "拖出失败"
+    }
+  },
+  "transfers": {
+    "popover": {
+      "title": "传输",
+      "titleAria": "传输",
+      "clearCompleted": "清除已完成的传输",
+      "close": "关闭传输",
+      "noTransfers": "没有传输",
+      "noTransfersHint": "将文件拖放到浏览器以上传",
+      "transferItemsAria": "传输项目"
+    },
+    "row": {
+      "retryAria": "重试 {name}",
+      "retryTitle": "重试传输",
+      "cancelAria": "取消 {name}",
+      "cancelTitle": "取消传输",
+      "dismissAria": "关闭 {name}",
+      "dismissTitle": "关闭",
+      "progressAria": "{name} {direction} 进度",
+      "files": "{done}/{total} 个文件"
+    }
+  },
+  "terminal": {
+    "local": "本地",
+    "search": {
+      "placeholder": "查找",
+      "ariaLabel": "搜索终端",
+      "noResults": "无结果",
+      "matchCount": "{{index}} / {{count}}",
+      "prevMatchTitle": "上一个匹配 (Shift+Enter)",
+      "prevMatchAria": "上一个匹配",
+      "nextMatchTitle": "下一个匹配 (Enter)",
+      "nextMatchAria": "下一个匹配",
+      "matchCase": "区分大小写",
+      "caseSensitivityAria": "切换大小写",
+      "useRegex": "使用正则",
+      "regexAria": "切换正则",
+      "closeTitle": "关闭 (Escape)",
+      "closeAria": "关闭搜索"
+    },
+    "pane": {
+      "floatAria": "浮动面板",
+      "splitAria": "分割面板",
+      "closeAria": "关闭面板",
+      "closeTitle": "关闭面板 (⌘W)",
+      "direction": "方向",
+      "horizontalSplit": "水平分割",
+      "verticalSplit": "垂直分割",
+      "forkSession": "复制会话",
+      "localTerminal": "本地终端",
+      "savedHosts": "已保存的主机",
+      "accentAria": "配色",
+      "accentTitle": "配色",
+      "renameHint": "点击重命名"
+    },
+    "disconnect": {
+      "errorAria": "连接错误",
+      "lostAria": "连接丢失",
+      "reconnect": "重新连接",
+      "connecting": "连接中",
+      "closeSession": "关闭会话",
+      "reconnectionFailed": "重新连接失败"
+    },
+    "floating": {
+      "closeAria": "关闭浮动面板"
+    }
+  },
+  "portForwarding": {
+    "title": "隧道",
+    "description": "通过 SSH 隧道将本地端口转发到远程服务，实现安全的数据库、API 和服务访问",
+    "searchPlaceholder": "搜索规则…",
+    "searchAria": "搜索转发规则",
+    "newRule": "新建规则",
+    "standalone": "独立",
+    "auto": "自动",
+    "connCount": "{count} 连接",
+    "stopTunnel": "停止隧道",
+    "startTunnel": "启动隧道",
+    "edit": "编辑",
+    "delete": "删除",
+    "stopTunnelAria": "停止隧道",
+    "startTunnelAria": "启动隧道",
+    "copyLocalhostAria": "复制 localhost 地址",
+    "noMatch": "没有匹配 \\u201C{query}\\u201D 的规则",
+    "emptyTitle": "暂无转发规则",
+    "emptyDescription": "通过 SSH 隧道将本地端口转发到远程服务",
+    "confirmDeleteTitle": "删除此隧道规则？",
+    "confirmDeleteMessage": "此隧道规则将被永久移除。",
+    "dialog": {
+      "editTitle": "编辑规则",
+      "newTitle": "新建规则",
+      "cancel": "取消",
+      "save": "保存",
+      "create": "创建",
+      "connection": "连接",
+      "host": "主机",
+      "noSavedHosts": "没有已保存的主机。请先添加主机。",
+      "label": "标签",
+      "optional": "（可选）",
+      "labelPlaceholder": "我的数据库",
+      "description": "描述",
+      "descPlaceholder": "用于分析的生产环境只读副本…",
+      "ports": "端口",
+      "localPort": "本地端口",
+      "remotePort": "远程端口",
+      "options": "选项",
+      "bindAddress": "绑定地址",
+      "bindLocalOnly": "127.0.0.1（仅本地）",
+      "bindAllInterfaces": "0.0.0.0（所有接口）",
+      "autoStart": "自动启动",
+      "autoStartHint": "主机连接时启动隧道"
+    }
+  },
+  "s3": {
+    "buckets": "存储桶",
+    "refresh": "刷新",
+    "noBuckets": "未找到存储桶",
+    "failedListBuckets": "列出存储桶失败",
+    "failedListObjects": "列出对象失败",
+    "failedSwitchBucket": "切换存储桶失败",
+    "downloadTitle": "下载 \"{name}\"",
+    "uploadTitle": "上传文件"
+  },
+  "statusBar": {
+    "noActiveSession": "无活动会话",
+    "sessionCount": "{count} 个会话",
+    "sessionCount_plural": "{count} 个会话"
+  },
+  "importSshConfig": {
+    "title": "导入 SSH 配置",
+    "done": "完成",
+    "cancel": "取消",
+    "importing": "导入中…",
+    "importN": "导入 {count} 台主机",
+    "importN_plural": "导入 {count} 台主机",
+    "scanning": "正在扫描 SSH 配置…",
+    "browse": "浏览配置文件",
+    "noHosts": "未在 SSH 配置中找到主机",
+    "tryDifferent": "尝试其他文件",
+    "defaultPath": "~/.ssh/config",
+    "change": "更改",
+    "selectedCount": "已选 {importable}/{total}",
+    "all": "全选",
+    "none": "取消全选",
+    "pattern": "通配符",
+    "exists": "已存在",
+    "imported": "已导入 {count} 台主机",
+    "imported_plural": "已导入 {count} 台主机",
+    "skipped": "已跳过 {count} 台",
+    "failedParse": "解析 SSH 配置失败",
+    "failedImport": "导入失败",
+    "selectFileTitle": "选择 SSH 配置文件"
+  },
+  "updateDialog": {
+    "title": "有可用更新",
+    "skip": "跳过此版本",
+    "later": "稍后",
+    "install": "安装",
+    "description": "Zendo v{version} 可用 — 您当前使用 v{appVersion}。",
+    "viewChangelog": "查看更新日志"
+  },
+  "dropOverwrite": {
+    "titleSingle": "覆盖项目？",
+    "titleMulti": "覆盖 {count} 个项目？",
+    "cancel": "取消",
+    "overwriteSingle": "覆盖",
+    "overwriteMulti": "覆盖 {count} 个",
+    "existsSingle": "{name} 已存在于此。",
+    "existsMulti": "{count} 个项目已存在于此。",
+    "hint": "文件将被替换；文件夹将被合并，仅替换内部同名文件。"
+  },
+  "editor": {
+    "launchFailed": "无法打开编辑器。请在 设置 \\u2192 编辑器 中配置。"
+  },
+  "updater": {
+    "checkFailed": "检查更新失败",
+    "downloadFailed": "下载失败",
+    "restartFailed": "无法自动重启 \\u2014 请手动重新打开应用"
+  },
+  "health": {
+    "pinging": "正在 Ping 主机…",
+    "pingFailed": "Ping 失败"
+  },
+  "session": {
+    "localTerminal": "本地终端"
   },
   "aria": {
-    "contextMenu": "上下文菜单"
+    "contextMenu": "上下文菜单",
+    "close": "关闭",
+    "dismiss": "关闭",
+    "settingsSections": "设置分区"
   }
 }

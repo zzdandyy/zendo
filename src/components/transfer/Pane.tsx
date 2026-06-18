@@ -39,7 +39,7 @@ interface PaneProps {
 
 const DRAGOUT_STAGING_SEGMENT = "anyscp-dragout";
 
-function errorMessage(err: unknown, fallback = "Operation failed"): string {
+function errorMessage(err: unknown, fallback: string): string {
   if (err && typeof err === "object" && "message" in err) {
     return String((err as { message: string }).message);
   }
@@ -63,8 +63,8 @@ function toExplorerEntries(sourceType: string, raw: unknown[]): ExplorerEntry[] 
 
 // ─── Toolbar source button ─────────────────────────────────────────────────
 
-function sourceLabel(s: PaneSource): string {
-  if (s.type === "local") return "Local";
+function sourceLabel(s: PaneSource, t: (key: string) => string): string {
+  if (s.type === "local") return t("pane.localLabel");
   if (s.type === "host") return s.label;
   if (s.type === "s3") return s.label;
   return "";
@@ -113,6 +113,7 @@ export function ToolbarSourceButton({
   source: PaneSource | null;
   onChange: (s: PaneSource) => void;
 }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const hostsMap = useHostsStore((s) => s.hosts);
   const s3Map = useS3Store((s) => s.connections);
@@ -149,10 +150,10 @@ export function ToolbarSourceButton({
             ) : (
               <Cloud size={14} strokeWidth={1.8} className="text-text-muted shrink-0" />
             )}
-            <span className="truncate max-w-[80px]">{sourceLabel(source)}</span>
+            <span className="truncate max-w-[80px]">{sourceLabel(source, t)}</span>
           </>
         ) : (
-          <span className="text-text-muted/60">Connect…</span>
+          <span className="text-text-muted/60">{t("pane.connect")}</span>
         )}
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none"
           stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
@@ -173,14 +174,14 @@ export function ToolbarSourceButton({
               onClick={() => { setOpen(false); onChange({ type: "local" }); }}
             >
               <Monitor size={14} strokeWidth={1.8} className="text-text-muted shrink-0" />
-              Local
+              {t("pane.localLabel")}
             </button>
 
             {/* Hosts */}
             {hosts.length > 0 && (
               <>
                 <div className="h-px bg-border/60 my-1 mx-2" />
-                <div className="px-3 py-0.5 text-[10px] font-semibold text-text-muted uppercase tracking-wider">Hosts</div>
+                <div className="px-3 py-0.5 text-[10px] font-semibold text-text-muted uppercase tracking-wider">{t("pane.hosts")}</div>
                 {hosts.map((host: any) => (
                   <button
                     key={host.id}
@@ -199,7 +200,7 @@ export function ToolbarSourceButton({
             {s3Conns.length > 0 && (
               <>
                 <div className="h-px bg-border/60 my-1 mx-2" />
-                <div className="px-3 py-0.5 text-[10px] font-semibold text-text-muted uppercase tracking-wider">Cloud Storage</div>
+                <div className="px-3 py-0.5 text-[10px] font-semibold text-text-muted uppercase tracking-wider">{t("pane.cloudStorage")}</div>
                 {s3Conns.map((conn: any) => (
                   <button
                     key={conn.id}
@@ -310,7 +311,7 @@ export function Pane({
           onEntriesChange(path, toExplorerEntries(source.type, raw));
         }
       } catch (err: unknown) {
-        setErrorState(errorMessage(err, "Failed to list directory"));
+        setErrorState(errorMessage(err, t("explorer.errors.listDirFailed")));
       } finally {
         setLoading(false);
       }
@@ -407,7 +408,7 @@ export function Pane({
                 }
                 await explorerInvoke(transport, "enqueue_upload", sessionId, { localPaths: paths, remoteDir });
               } catch (err) {
-                toast.error(errorMessage(err, "Upload failed"));
+                toast.error(errorMessage(err, t("explorer.errors.uploadFailed")));
               } finally {
                 setTimeout(() => { isProcessingDrop.current = false; }, 500);
               }
@@ -479,7 +480,7 @@ export function Pane({
           });
         }
       } catch (err) {
-        setErrorState(errorMessage(err, "Download failed"));
+        setErrorState(errorMessage(err, t("explorer.errors.downloadFailed")));
       } finally {
         setBusy(false);
       }
@@ -499,7 +500,7 @@ export function Pane({
         }
         await loadDir(currentPathRef.current);
       } catch (err) {
-        setErrorState(errorMessage(err, "Delete failed"));
+        setErrorState(errorMessage(err, t("explorer.errors.deleteFailed")));
       } finally {
         setBusy(false);
       }
@@ -538,7 +539,7 @@ export function Pane({
         }
         await loadDir(currentPath);
       } catch (err) {
-        setErrorState(errorMessage(err, "Create file failed"));
+        setErrorState(errorMessage(err, t("explorer.errors.createFileFailed")));
       }
     },
     [source, transport, sessionId, provider, currentPath, loadDir],
@@ -556,7 +557,7 @@ export function Pane({
         }
         await loadDir(currentPath);
       } catch (err) {
-        setErrorState(errorMessage(err, "Create folder failed"));
+        setErrorState(errorMessage(err, t("explorer.errors.createFolderFailed")));
       }
     },
     [source, transport, sessionId, provider, currentPath, loadDir],
@@ -581,7 +582,7 @@ export function Pane({
           });
         }
       } catch (err) {
-        toast.error(editorLaunchErrorMessage(err));
+        toast.error(editorLaunchErrorMessage(err, t("editor.launchFailed")));
       }
     },
     [source, transport, sessionId],
@@ -646,7 +647,7 @@ export function Pane({
       }
       await loadDir(currentPath);
     } catch (err) {
-      setErrorState(errorMessage(err, "Paste failed"));
+      setErrorState(errorMessage(err, t("explorer.errors.pasteFailed")));
     } finally {
       setBusy(false);
     }
@@ -773,7 +774,7 @@ export function Pane({
                   try {
                     await explorerInvoke(transport, "drag_out", sessionId, { paths: ents.map((e) => e.id) });
                   } catch (err) {
-                    toast.error(errorMessage(err, "Drag out failed"));
+                    toast.error(errorMessage(err, t("explorer.errors.dragOutFailed")));
                   }
                 })();
               }

@@ -95,7 +95,7 @@ if (typeof window !== "undefined") {
     __e2eBackupExport?: (password: string, path: string) => Promise<void>;
     __e2eBackupImport?: (password: string, path: string) => Promise<void>;
     __e2eFactoryReset?: () => Promise<void>;
-    __e2eDataCounts?: () => Promise<{ hosts: number; groups: number }>;
+    __e2eDataCounts?: () => Promise<{ hosts: number }>;
     __e2eHostOrder?: () => Promise<string[]>;
   };
   w.__e2eDuplicateHost = (id) => useHostsStore.getState().duplicateHost(id);
@@ -120,10 +120,7 @@ if (typeof window !== "undefined") {
   };
   w.__e2eDataCounts = async () => {
     const { invoke } = await import("@tauri-apps/api/core");
-    const [hosts, groups] = await Promise.all([
-      invoke<unknown[]>("list_hosts"),
-      invoke<unknown[]>("list_groups"),
-    ]);
-    return { hosts: hosts.length, groups: groups.length };
+    const hosts = await invoke<unknown[]>("list_hosts");
+    return { hosts: hosts.length };
   };
 }

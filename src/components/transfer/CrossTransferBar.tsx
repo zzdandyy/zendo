@@ -146,6 +146,13 @@ function TransferRow({
   cancelLabel: string;
   dismissLabel: string;
 }) {
+  const { t } = useTranslation();
+
+  function formatSpeed(bps: number): string {
+    const s = formatSpeedValue(bps);
+    return t(`transfer.${s.unitKey}`, { value: s.value });
+  }
+
   const isActive = item.status === "InProgress" || item.status === "Queued";
   const isDone = item.status === "Completed";
   const isError = item.status === "Failed" || item.status === "Cancelled";
@@ -227,8 +234,8 @@ function TransferRow({
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-function formatSpeed(bytesPerSec: number): string {
-  if (bytesPerSec >= 1_000_000) return `${(bytesPerSec / 1_000_000).toFixed(1)} MB/s`;
-  if (bytesPerSec >= 1_000) return `${(bytesPerSec / 1_000).toFixed(1)} KB/s`;
-  return `${bytesPerSec} B/s`;
+function formatSpeedValue(bytesPerSec: number): { value: string; unitKey: string } {
+  if (bytesPerSec >= 1_000_000) return { value: (bytesPerSec / 1_000_000).toFixed(1), unitKey: "speedMbs" };
+  if (bytesPerSec >= 1_000) return { value: (bytesPerSec / 1_000).toFixed(1), unitKey: "speedKbs" };
+  return { value: String(bytesPerSec), unitKey: "speedBps" };
 }

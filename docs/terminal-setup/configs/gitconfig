@@ -1,0 +1,12 @@
+[safe]
+	directory = /opt/arcanist
+[core]
+	autocrlf = input
+[user]
+	name = yuyuyu
+	email = 1012061740@qq.com
+[filter "lfs"]
+	process = git-lfs filter-process
+	required = true
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f

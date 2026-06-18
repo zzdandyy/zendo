@@ -12,15 +12,8 @@ import {
     waitForModalClosed,
 } from "../helpers/host.js";
 import {
-    fillGroupAndSave,
-    findGroupCard,
-    openNewGroupModal,
-} from "../helpers/groups.js";
-import {
-    domGroupOrder,
     domHostOrder,
     dragOnto,
-    waitForPersistedGroupOrder,
     waitForPersistedHostOrder,
 } from "../helpers/reorder.js";
 
@@ -75,32 +68,4 @@ describe("drag-and-drop reordering persists across restart", () => {
         expect(await domHostOrder()).to.deep.equal(expected);
     });
 
-    it("reorders group cards and persists the new order", async () => {
-        await resetApp();
-        await waitForDashboard();
-
-        // Groups get sort_order = creation index, so creation order is a,b,c.
-        await openNewGroupModal();
-        await fillGroupAndSave("grp-a");
-        await openNewGroupModal();
-        await fillGroupAndSave("grp-b");
-        await openNewGroupModal();
-        await fillGroupAndSave("grp-c");
-        await findGroupCard("grp-c");
-
-        expect(await domGroupOrder()).to.deep.equal(["grp-a", "grp-b", "grp-c"]);
-
-        // Drag the first group card onto the last → [b, c, a].
-        const first = await findGroupCard("grp-a");
-        const last = await findGroupCard("grp-c");
-        await dragOnto(first, last);
-
-        const expected = ["grp-b", "grp-c", "grp-a"];
-        await waitForPersistedGroupOrder(expected);
-
-        await relaunchApp();
-        await waitForDashboard();
-        await findGroupCard("grp-a");
-        expect(await domGroupOrder()).to.deep.equal(expected);
-    });
 });

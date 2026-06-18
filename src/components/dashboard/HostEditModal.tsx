@@ -25,7 +25,6 @@ interface FormState {
   port: string;
   username: string;
   authType: AuthType;
-  groupId: string;
   keyPath: string;
   proxyJump: string;
   proxyJumpHostId: string;
@@ -50,7 +49,6 @@ const EMPTY_FORM: FormState = {
   port: "22",
   username: "",
   authType: "password",
-  groupId: "",
   keyPath: "",
   proxyJump: "",
   proxyJumpHostId: "",
@@ -84,7 +82,6 @@ function savedHostToForm(host: SavedHost): FormState {
     port: String(host.port),
     username: host.username,
     authType,
-    groupId: host.group_id ?? "",
     keyPath: host.key_path ?? "",
     proxyJump: host.proxy_jump ?? "",
     proxyJumpHostId: host.proxy_jump_host_id ?? "",
@@ -303,7 +300,6 @@ export function HostEditModal() {
       port: parseInt(form.port, 10),
       username: form.username.trim(),
       auth_type: form.authType,
-      group_id: form.groupId === "" ? null : form.groupId,
       updated_at: new Date().toISOString(),
       key_path: form.authType === "privateKey" && form.keyPath.trim()
         ? form.keyPath.trim()
@@ -570,24 +566,22 @@ export function HostEditModal() {
                 />
               </div>
 
-              {/* Auth Type + Group row */}
-              <div className="flex gap-3">
-                <div className="flex-1">
-                  <label htmlFor="hem-auth" className={labelClass}>
-                    {t('hosts:hostdialog.authType')}
-                  </label>
-                  <CustomSelect
-                    id="hem-auth"
-                    data-testid="host-modal-auth"
-                    value={form.authType}
-                    onChange={(v) => setField("authType", v as AuthType)}
-                    disabled={isBusy}
-                    options={[
-                      { value: "password", label: t('hosts:hostdialog.passwordAuth') },
-                      { value: "privateKey", label: t('hosts:hostdialog.privateKeyAuth') },
-                    ]}
-                  />
-                </div>
+              {/* Auth Type */}
+              <div>
+                <label htmlFor="hem-auth" className={labelClass}>
+                  {t('hosts:hostdialog.authType')}
+                </label>
+                <CustomSelect
+                  id="hem-auth"
+                  data-testid="host-modal-auth"
+                  value={form.authType}
+                  onChange={(v) => setField("authType", v as AuthType)}
+                  disabled={isBusy}
+                  options={[
+                    { value: "password", label: t('hosts:hostdialog.passwordAuth') },
+                    { value: "privateKey", label: t('hosts:hostdialog.privateKeyAuth') },
+                  ]}
+                />
               </div>
 
               {/* Auth credentials — conditional on auth type */}

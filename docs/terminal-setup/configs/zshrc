@@ -1,0 +1,118 @@
+# ==================================================================
+# 🚀 Powerlevel10k Instant Prompt (必须在最顶端)
+# ==================================================================
+if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
+  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+fi
+
+# ==================================================================
+# 🔧 环境变量和路径 (Exports & PATH)
+# ==================================================================
+# Oh My Zsh
+export ZSH="$HOME/.oh-my-zsh"
+
+# NVM (Node Version Manager)
+export NVM_DIR="$HOME/.nvm"
+
+# Java
+export JAVA_HOME="/Users/yuyuyu/Library/Java/JavaVirtualMachines/corretto-17.0.8.1/Contents/Home"
+
+# Maven
+export MAVEN_HOME="/Applications/IntelliJ IDEA.app/Contents/plugins/maven/lib/maven3"
+
+# Pyenv (Python Version Manager)
+export PYENV_ROOT="/usr/local/var/pyenv"
+
+# API Keys & Tokens
+export SENTRY_AUTH_TOKEN="<your-sentry-token>"
+
+# 语言环境
+export LANG=en_US.UTF-8
+
+# 集中设置 PATH 变量
+# 为了避免重复和混乱，请在这里统一添加路径
+export PATH="/usr/local/opt/php@7.4/bin:$PATH"
+export PATH="$PYENV_ROOT/bin:$PATH"
+export PATH="$JAVA_HOME/bin:$PATH"
+export PATH="$MAVEN_HOME/bin:$PATH"
+export PATH="/Users/yuyuyu/Desktop/phabricat/arcanist/bin:$PATH"
+# Anaconda 路径由下面的 conda init 管理，无需在此手动添加
+
+# ==================================================================
+# 💡 Oh My Zsh 配置
+# ==================================================================
+# 主题设置 (使用 p10k)
+ZSH_THEME="powerlevel10k/powerlevel10k"
+
+# 插件列表
+plugins=(
+  git
+  zsh-autosuggestions
+  zsh-syntax-highlighting
+  # 如果您经常使用 nvm，可以考虑添加 nvm 插件
+  # nvm
+)
+
+# zsh-autosuggestions 插件高亮颜色
+export ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE="fg=#6a687a"
+
+# 自定义快捷键
+bindkey '^E' end-of-line
+
+# 加载 Oh My Zsh (必须在所有插件和主题配置之后)
+source "$ZSH/oh-my-zsh.sh"
+
+# ==================================================================
+# 🛠️ 工具初始化 (放在 Oh My Zsh 加载之后)
+# ==================================================================
+# NVM 初始化
+source "$(brew --prefix nvm)/nvm.sh"
+
+# Pyenv 初始化
+if command -v pyenv 1>/dev/null 2>&1; then
+  eval "$(pyenv init -)"
+fi
+
+# Starship 初始化 (已禁用，因为它与 Powerlevel10k 冲突)
+# 如果您想用 Starship 而不是 Powerlevel10k，请取消下面这行的注释，并修改上面的 ZSH_THEME
+# eval "$(starship init zsh)"
+
+# 错误的做法：从 .zshrc 加载 .bash_profile (已禁用)
+# Zsh 和 Bash 的配置文件不应混用
+# source ~/.bash_profile
+
+# ==================================================================
+# 📦 Conda 和 p10k 的自动配置 (保持在文件末尾)
+# ==================================================================
+# >>> conda initialize >>>
+# !! Contents within this block are managed by 'conda init' !!
+__conda_setup="$('/Users/yuyuyu/anaconda3/bin/conda' 'shell.zsh' 'hook' 2> /dev/null)"
+if [ $? -eq 0 ]; then
+    eval "$__conda_setup"
+else
+    if [ -f "/Users/yuyuyu/anaconda3/etc/profile.d/conda.sh" ]; then
+        . "/Users/yuyuyu/anaconda3/etc/profile.d/conda.sh"
+    else
+        export PATH="/Users/yuyuyu/anaconda3/bin:$PATH"
+    fi
+fi
+unset __conda_setup
+# <<< conda initialize <<<
+
+# To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
+[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+# bun completions
+[ -s "/Users/yuyuyu/.bun/_bun" ] && source "/Users/yuyuyu/.bun/_bun"
+
+# bun
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
+
+# Zendo shell hook — captures every command (disabled)
+# __zendo_preexec() {
+#     curl -s -X POST http://localhost:19199/event \
+#       -H "Content-Type: application/json" \
+#       -d "{\"event_type\": \"desktop.shell.command\", \"raw\": {\"cmd\": \"$(echo "$1" | sed 's/\\\"/\\\\\\\"/g')\", \"cwd\": \"$PWD\", \"ts\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}}" &
+# }
+# preexec_functions+=(__zendo_preexec)
+

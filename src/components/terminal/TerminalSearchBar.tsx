@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { X, ChevronUp, ChevronDown, CaseSensitive, Regex } from "lucide-react";
 import { useTerminalSearchStore } from "../../stores/terminal-search-store";
 import { getSearchAddon } from "../../stores/terminal-registry";
@@ -56,6 +57,7 @@ const BTN_CLASS = [
 ].join(" ");
 
 export function TerminalSearchBar({ sessionId }: TerminalSearchBarProps) {
+  const { t } = useTranslation();
   const query = useTerminalSearchStore((s) => s.queries.get(sessionId) ?? "");
   const results = useTerminalSearchStore((s) => s.results.get(sessionId));
   const caseSensitive = useTerminalSearchStore((s) => s.caseSensitive);
@@ -157,9 +159,9 @@ export function TerminalSearchBar({ sessionId }: TerminalSearchBarProps) {
   const matchText = !query
     ? ""
     : results && results.count > 0
-      ? `${results.index} of ${results.count}`
+      ? t("terminal.search.matchCount", { index: results.index, count: results.count })
       : query
-        ? "No results"
+        ? t("terminal.search.noResults")
         : "";
 
   return (
@@ -183,8 +185,8 @@ export function TerminalSearchBar({ sessionId }: TerminalSearchBarProps) {
         value={query}
         onChange={(e) => handleInput(e.target.value)}
         onKeyDown={handleKeyDown}
-        placeholder="Find"
-        aria-label="Search terminal"
+        placeholder={t("terminal.search.placeholder")}
+        aria-label={t("terminal.search.ariaLabel")}
         className={[
           "w-[160px] px-2 py-1 rounded text-[length:var(--text-xs)]",
           "bg-bg-base border border-border text-text-primary placeholder:text-text-muted",
@@ -203,8 +205,8 @@ export function TerminalSearchBar({ sessionId }: TerminalSearchBarProps) {
       {/* Prev / Next */}
       <button
         onClick={handlePrev}
-        title="Previous match (Shift+Enter)"
-        aria-label="Previous match"
+        title={t("terminal.search.prevMatchTitle")}
+        aria-label={t("terminal.search.prevMatchAria")}
         disabled={!query || !results?.count}
         className={`${BTN_CLASS} text-text-muted hover:text-text-primary hover:bg-bg-subtle disabled:opacity-30`}
       >
@@ -212,8 +214,8 @@ export function TerminalSearchBar({ sessionId }: TerminalSearchBarProps) {
       </button>
       <button
         onClick={handleNext}
-        title="Next match (Enter)"
-        aria-label="Next match"
+        title={t("terminal.search.nextMatchTitle")}
+        aria-label={t("terminal.search.nextMatchAria")}
         disabled={!query || !results?.count}
         className={`${BTN_CLASS} text-text-muted hover:text-text-primary hover:bg-bg-subtle disabled:opacity-30`}
       >
@@ -226,8 +228,8 @@ export function TerminalSearchBar({ sessionId }: TerminalSearchBarProps) {
       {/* Toggles */}
       <button
         onClick={toggleCaseSensitive}
-        title="Match case"
-        aria-label="Toggle case sensitivity"
+        title={t("terminal.search.matchCase")}
+        aria-label={t("terminal.search.caseSensitivityAria")}
         aria-pressed={caseSensitive}
         className={`${BTN_CLASS} ${caseSensitive ? "text-accent bg-accent/10" : "text-text-muted hover:text-text-primary hover:bg-bg-subtle"}`}
       >
@@ -235,8 +237,8 @@ export function TerminalSearchBar({ sessionId }: TerminalSearchBarProps) {
       </button>
       <button
         onClick={toggleRegex}
-        title="Use regex"
-        aria-label="Toggle regex"
+        title={t("terminal.search.useRegex")}
+        aria-label={t("terminal.search.regexAria")}
         aria-pressed={regex}
         className={`${BTN_CLASS} ${regex ? "text-accent bg-accent/10" : "text-text-muted hover:text-text-primary hover:bg-bg-subtle"}`}
       >
@@ -249,8 +251,8 @@ export function TerminalSearchBar({ sessionId }: TerminalSearchBarProps) {
       {/* Close */}
       <button
         onClick={handleClose}
-        title="Close (Escape)"
-        aria-label="Close search"
+        title={t("terminal.search.closeTitle")}
+        aria-label={t("terminal.search.closeAria")}
         className={`${BTN_CLASS} text-text-muted hover:text-text-primary hover:bg-bg-subtle`}
       >
         <X size={14} strokeWidth={2} aria-hidden="true" />

@@ -5,9 +5,28 @@ import {
   ensureTerminal,
   getTerminal,
   getTerminalTheme,
+  shouldFit,
 } from "../../stores/terminal-instances";
 import { useSettingsStore } from "../../stores/settings-store";
+import { useSessionStore } from "../../stores/session-store";
 import type { SessionId } from "../../types";
+
+/** Convert an OKLCH colour string to hex for xterm.js. */
+function oklchToHex(oklch: string): string | null {
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = 1;
+    canvas.height = 1;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.fillStyle = oklch;
+    ctx.fillRect(0, 0, 1, 1);
+    const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+    return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
+  } catch {
+    return null;
+  }
+}
 
 interface TerminalProps {
   sessionId: SessionId;
@@ -28,6 +47,7 @@ export function Terminal({ sessionId }: TerminalProps) {
   const lineHeight = useSettingsStore((s) => s.terminalLineHeight);
   const cursorStyle = useSettingsStore((s) => s.terminalCursorStyle);
   const cursorBlink = useSettingsStore((s) => s.terminalCursorBlink);
+  const accent = useSessionStore((s) => s.sessions.get(sessionId)?.accent ?? "oklch(0.80 0 0)");
   const scrollback = useSettingsStore((s) => s.terminalScrollback);
   const copyOnSelect = useSettingsStore((s) => s.terminalCopyOnSelect);
   const pasteButton = useSettingsStore((s) => s.terminalPasteButton);
@@ -62,12 +82,21 @@ export function Terminal({ sessionId }: TerminalProps) {
       const { element, fitAddon } = ensureTerminal(sessionId);
       container.appendChild(element);
 
-      // Fit after layout settles, then again whenever the container resizes.
+      // Fit after layout settles. Double-rAF so the browser has two frames
+      // to fully resolve the parent's flex/layout before xterm measures its
+      // container — critical when the element is re-parented (e.g. pane
+      // moved from a split to a floating window).
       requestAnimationFrame(() => {
-        if (!disposed) fitAddon.fit();
+        requestAnimationFrame(() => {
+          if (!disposed) fitAddon.fit();
+        });
       });
 
       observer = new ResizeObserver(() => {
+        // Skip rAF + layout reads entirely while fits are suppressed (drag /
+        // resize in progress). shouldFit() still marks the session dirty so
+        // resumeTerminalFits() can batch-fit it later.
+        if (!shouldFit(sessionId)) return;
         requestAnimationFrame(() => {
           if (
             !disposed &&
@@ -144,16 +173,30 @@ export function Terminal({ sessionId }: TerminalProps) {
       }
     };
     const onContextMenu = (e: MouseEvent) => {
-      if (pasteButtonRef.current === "right") {
-        e.preventDefault();
-        paste();
-      }
+      e.preventDefault();
+      if (pasteButtonRef.current === "right") paste();
     };
 
     container.addEventListener("mousedown", onMouseDown, true);
     container.addEventListener("contextmenu", onContextMenu, true);
+
+    // xterm.js v6: when the textarea is focused, xterm does expensive
+    // cursor/textarea tracking on every scroll event. During scrollbar drag
+    // this causes visible stutter. Blur when the user starts interacting
+    // with the xterm custom scrollbar — works the same way as clicking the
+    // PaneHeader (focus moves away, xterm exits focused mode).
+    const onScrollbarPointerDown = (e: PointerEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.closest(".xterm .xterm-scrollable-element > .scrollbar")) {
+        const ta = container.querySelector(".xterm-helper-textarea") as HTMLTextAreaElement | null;
+        ta?.blur();
+      }
+    };
+    document.addEventListener("pointerdown", onScrollbarPointerDown, true);
+
     return () => {
       selectionSub.dispose();
+      document.removeEventListener("pointerdown", onScrollbarPointerDown, true);
       container.removeEventListener("mousedown", onMouseDown, true);
       container.removeEventListener("contextmenu", onContextMenu, true);
     };
@@ -169,11 +212,14 @@ export function Terminal({ sessionId }: TerminalProps) {
     term.options.lineHeight = lineHeight;
     term.options.cursorStyle = cursorStyle;
     term.options.cursorBlink = cursorBlink;
+    // Parse OLEDCH accent to hex for cursor colour
+    const hex = oklchToHex(accent);
+    if (hex) term.options.theme = { ...term.options.theme, cursor: hex };
     term.options.scrollback = scrollback;
     // Re-fit so the new glyph metrics recompute rows/cols, then repaint.
     fitAddon.fit();
     term.refresh(0, term.rows - 1);
-  }, [sessionId, fontFamily, fontSize, lineHeight, cursorStyle, cursorBlink, scrollback]);
+  }, [sessionId, fontFamily, fontSize, lineHeight, cursorStyle, cursorBlink, accent, scrollback]);
 
   return (
     <div

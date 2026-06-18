@@ -51,10 +51,10 @@ export async function factoryReset(): Promise<void> {
 
 /** Row counts straight from the backend, across entity types — so a restore can
  *  be verified at the data layer, not just via the dashboard. */
-export async function dataCounts(): Promise<{ hosts: number; groups: number }> {
+export async function dataCounts(): Promise<{ hosts: number }> {
     return await browser.execute(async () => {
         const fn = (window as unknown as {
-            __e2eDataCounts?: () => Promise<{ hosts: number; groups: number }>;
+            __e2eDataCounts?: () => Promise<{ hosts: number }>;
         }).__e2eDataCounts;
         if (!fn) throw new Error("__e2eDataCounts not registered");
         return await fn();

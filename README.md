@@ -27,6 +27,8 @@
       <ul>
         <li>xterm.js + WebGL rendering</li>
         <li>Split panes (horizontal / vertical), tabs, floating windows</li>
+        <li>Per-pane accent colours (OKLCH), cursor colour follows accent</li>
+        <li>Pin tabs — restore full layouts (splits + floating panes) on startup</li>
         <li>In-terminal regex search, select-to-copy, middle/right-click paste</li>
         <li>Keep-alive, startup commands, ProxyJump / bastion chains</li>
         <li>SSH key auth with auto PPK → OpenSSH conversion</li>

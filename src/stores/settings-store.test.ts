@@ -119,3 +119,105 @@ describe("settings-store — explorer double-click action", () => {
     expect(useSettingsStore.getState().explorerDoubleClickAction).toBe("download");
   });
 });
+
+describe("settings-store — pinned tabs", () => {
+  beforeEach(() => {
+    invoke.mockReset();
+    invoke.mockResolvedValue(undefined);
+    useSettingsStore.setState({ pinnedTabs: [] });
+  });
+
+  it("setPinnedTabs persists as JSON", async () => {
+    useSettingsStore.getState().setPinnedTabs([
+      {
+        type: "terminal",
+        label: "My Tab",
+        layout: { type: "pane", label: "root@host" },
+      },
+    ]);
+
+    expect(useSettingsStore.getState().pinnedTabs).toHaveLength(1);
+    await vi.waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith(
+        "save_setting",
+        expect.objectContaining({ key: "app_pinned_tabs" }),
+      ),
+    );
+  });
+
+  it("migrates old flat format (no layout) to new layout format", async () => {
+    invoke.mockImplementation(async (cmd: string) => {
+      if (cmd === "load_all_settings") {
+        return [
+          [
+            "app_pinned_tabs",
+            JSON.stringify([
+              { type: "terminal", hostId: "h1", label: "Old Tab", accent: "oklch(1 0 0)" },
+              { type: "terminal", label: "Local Only" },
+            ]),
+          ],
+          ["editors_seeded", "true"],
+        ];
+      }
+      return undefined;
+    });
+
+    await useSettingsStore.getState().loadSettings();
+
+    const tabs = useSettingsStore.getState().pinnedTabs;
+    expect(tabs).toHaveLength(2);
+
+    // First old descriptor → wrapped into layout.pane
+    expect(tabs[0]).toEqual({
+      type: "terminal",
+      label: "Old Tab",
+      layout: {
+        type: "pane",
+        hostId: "h1",
+        label: "Old Tab",
+        accent: "oklch(1 0 0)",
+      },
+    });
+
+    // Second old descriptor (local) → wrapped, no hostId
+    expect(tabs[1]).toEqual({
+      type: "terminal",
+      label: "Local Only",
+      layout: {
+        type: "pane",
+        hostId: undefined,
+        label: "Local Only",
+        accent: undefined,
+      },
+    });
+  });
+
+  it("keeps new-format descriptors unchanged", async () => {
+    const newFormat = {
+      type: "terminal" as const,
+      label: "Workplace 2",
+      layout: {
+        type: "split" as const,
+        direction: "horizontal" as const,
+        ratio: 0.5,
+        children: [
+          { type: "pane" as const, hostId: "h1", label: "left", accent: "oklch(0.8 0 0)" },
+          { type: "pane" as const, label: "local" },
+        ],
+      },
+    };
+
+    invoke.mockImplementation(async (cmd: string) => {
+      if (cmd === "load_all_settings") {
+        return [["app_pinned_tabs", JSON.stringify([newFormat])], ["editors_seeded", "true"]];
+      }
+      return undefined;
+    });
+
+    await useSettingsStore.getState().loadSettings();
+
+    const tabs = useSettingsStore.getState().pinnedTabs;
+    expect(tabs).toHaveLength(1);
+    expect(tabs[0]).toEqual(newFormat);
+  });
+});

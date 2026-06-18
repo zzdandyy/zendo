@@ -5,18 +5,14 @@
   "sections": {
     "appearance": "外观",
     "terminal": "终端",
-    "explorer": "文件浏览器",
-    "transfers": "传输",
-    "editors": "编辑器",
+    "files": "文件操作",
     "data": "数据",
     "about": "关于 & 更新"
   },
   "descriptions": {
     "appearance": "主题和界面外观。",
     "terminal": "字体、光标和回滚历史。",
-    "explorer": "文件浏览器行为设置。",
-    "transfers": "控制文件传输方式。",
-    "editors": "文件浏览器中 \"Edit\" / \"Open With\" 使用的编辑器。",
+    "files": "文件浏览器、传输和编辑器设置。",
     "data": "备份、恢复和重置数据。",
     "about": "应用信息、链接和更新。"
   },
@@ -40,6 +36,7 @@
       "desc": "在深色和浅色主题之间切换"
     },
     "dark": "深色",
+    "brass": "黄铜",
     "light": "浅色",
     "accentColor": {
       "label": "强调色",
@@ -53,7 +50,8 @@
       "red": "红色",
       "orange": "橙色",
       "green": "绿色",
-      "teal": "青色"
+      "teal": "青色",
+      "neutral": "中性色"
     },
     "custom": "自定义",
     "customColor": "自定义颜色",
@@ -63,7 +61,16 @@
     "interfaceFont": {
       "label": "界面字体",
       "desc": "菜单、标签和面板使用的字体"
-    }
+    },
+    "interfaceFontSize": {
+      "label": "界面字号",
+      "desc": "整个界面的基础字号"
+    },
+    "hueWheelAria": "强调色色相"
+  },
+  "interface": {
+    "languageLabel": "语言 / Language",
+    "languageDesc": "界面显示语言"
   },
   "terminal": {
     "fontFamily": {
@@ -121,10 +128,14 @@
       "desc": "最大同时传输文件数（1–10）"
     }
   },
+  "files": {
+    "explorer": "文件浏览器",
+    "transfers": "传输"
+  },
   "data": {
     "exportBackup": {
       "label": "导出加密备份",
-      "desc": "将所有主机、分组、设置和已保存的凭据保存到一个受密码保护的文件中。"
+      "desc": "将所有主机、设置和已保存的凭据保存到一个受密码保护的文件中。"
     },
     "exportButton": "导出…",
     "importBackup": {
@@ -134,7 +145,7 @@
     "importButton": "导入…",
     "clearAll": {
       "label": "清除所有数据",
-      "desc": "永久删除所有已保存的主机、分组、连接历史、端口转发规则和 S3 连接——以及它们已存储的凭据和所有应用偏好。Zendo 将恢复到首次启动状态。此操作不可撤销。"
+      "desc": "永久删除所有已保存的主机、端口转发规则和 S3 连接——以及它们已存储的凭据和所有应用偏好。Zendo 将恢复到首次启动状态。此操作不可撤销。"
     },
     "clearAllButton": "清除所有数据…"
   },
@@ -159,7 +170,7 @@
   },
   "resetModal": {
     "title": "清除所有数据？",
-    "desc": "这将永久删除<strong>所有</strong>已保存的主机、分组、历史记录、端口转发规则、S3 连接、已存储的凭据和偏好设置。Zendo 将重新启动。此操作不可撤销。",
+    "desc": "这将永久删除<strong>所有</strong>已保存的主机、历史记录、端口转发规则、S3 连接、已存储的凭据和偏好设置。Zendo 将重新启动。此操作不可撤销。",
     "typeToConfirm": "输入 <code>{{word}}</code> 以确认",
     "confirmWord": "DELETE",
     "clearButton": "清除所有数据",

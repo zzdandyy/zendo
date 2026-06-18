@@ -9,12 +9,28 @@
     "add": "Add",
     "remove": "Remove",
     "search": "Search",
-    "retry": "Retry"
+    "retry": "Retry",
+    "apply": "Apply",
+    "clear": "Clear",
+    "paste": "Paste",
+    "copy": "Copy",
+    "cut": "Cut",
+    "rename": "Rename",
+    "download": "Download",
+    "refresh": "Refresh"
   },
   "status": {
     "loading": "Loading…",
     "error": "Error",
-    "success": "Success"
+    "success": "Success",
+    "queued": "Queued",
+    "done": "Done",
+    "cancelled": "Cancelled",
+    "failed": "Failed",
+    "calculating": "Calculating…",
+    "active": "{count} active",
+    "queued_count": "{count} queued",
+    "done_count": "{count} done"
   },
   "nav": {
     "hosts": "Connections",
@@ -26,6 +42,8 @@
   "tab": {
     "rename": "Rename",
     "duplicate": "Duplicate",
+    "pin": "Pin Tab",
+    "unpin": "Unpin Tab",
     "newTab": "New tab",
     "close": "Close {name}",
     "home": "Home",
@@ -38,15 +56,325 @@
   "transfer": {
     "swapSides": "Swap sides",
     "resizeHandle": "Resize panes",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "speedBps": "{value} B/s",
+    "speedKbs": "{value} KB/s",
+    "speedMbs": "{value} MB/s"
   },
   "pane": {
     "localLabel": "Local",
     "notConnected": "Not connected",
     "showHidden": "Show hidden files",
-    "hideHidden": "Hide hidden files"
+    "hideHidden": "Hide hidden files",
+    "connect": "Connect…",
+    "hosts": "Hosts",
+    "cloudStorage": "Cloud Storage",
+    "unknown": "Unknown"
+  },
+  "explorer": {
+    "toolbar": {
+      "goToRoot": "Go to {root}",
+      "goToRootAria": "Go to root",
+      "currentPathAria": "Current path",
+      "navigateTo": "Navigate to {path}",
+      "operationInProgress": "Operation in progress",
+      "uploadFile": "Upload file",
+      "newFile": "New file",
+      "newFolder": "New folder",
+      "refresh": "Refresh",
+      "sudoEnable": "Enable sudo mode",
+      "sudoDisable": "Disable sudo mode"
+    },
+    "dropZone": {
+      "uploadLabel": "Drop files to upload",
+      "dropToUpload": "Drop files to upload",
+      "dropToUploadInto": "Drop to upload into {folder}"
+    },
+    "fileTable": {
+      "columns": {
+        "name": "Name",
+        "size": "Size",
+        "modified": "Modified",
+        "permissions": "Permissions",
+        "class": "Class"
+      },
+      "directoryContents": "Directory contents",
+      "renameFileAria": "Rename file",
+      "newFolderNameAria": "New folder name",
+      "newFileNameAria": "New file name",
+      "newFolderPlaceholder": "Folder name",
+      "newFilePlaceholder": "file.txt",
+      "emptyFolder": "This folder is empty",
+      "rightClickHint": "Right-click for more options"
+    },
+    "contextMenu": {
+      "paste": "Paste",
+      "newFile": "New File",
+      "newFolder": "New Folder",
+      "copyN": "Copy {count} {count, plural, one {item} other {items}}",
+      "cutN": "Cut {count} {count, plural, one {item} other {items}}",
+      "deleteN": "Delete {count} {count, plural, one {item} other {items}}",
+      "editIn": "Edit in {editorName}",
+      "openWith": "Open With",
+      "download": "Download",
+      "downloadFolder": "Download Folder",
+      "copyPresignedUrl": "Copy Presigned URL",
+      "rename": "Rename",
+      "copyPath": "Copy Path",
+      "copy": "Copy",
+      "cut": "Cut",
+      "properties": "Properties",
+      "delete": "Delete"
+    },
+    "deleteConfirm": {
+      "titleSingleFile": "Delete File",
+      "titleSingleDir": "Delete Directory",
+      "titleMulti": "Delete {count} items",
+      "bodySingleFile": "{name} will be permanently deleted.",
+      "bodySingleDir": "{name} will be permanently deleted. All contents inside will also be removed.",
+      "bodyMulti": "{count} items will be permanently deleted.",
+      "bodyMultiWithDirs": "{count} items will be permanently deleted. Directories and all their contents will be removed.",
+      "cancel": "Cancel",
+      "confirmSingle": "Delete",
+      "confirmMulti": "Delete {count} items"
+    },
+    "dragGhost": {
+      "move": "Move {count} {count, plural, one {item} other {items}}",
+      "copy": "Copy {count} {count, plural, one {item} other {items}}",
+      "copyHint": "· ⌥ to copy"
+    },
+    "properties": {
+      "title": "Properties for {name}",
+      "type": "Type",
+      "typeFile": "File",
+      "typeDir": "Directory",
+      "typeSymlink": "Symlink",
+      "size": "Size",
+      "location": "Location",
+      "path": "Path",
+      "modified": "Modified",
+      "class": "Class",
+      "copyPath": "Copy path",
+      "permissions": "Permissions",
+      "permissionsReadOnly": "read-only (symlink)",
+      "read": "Read",
+      "write": "Write",
+      "execute": "Execute",
+      "owner": "Owner",
+      "group": "Group",
+      "other": "Other",
+      "octal": "Octal",
+      "octalAria": "Octal permissions",
+      "specialBitsSet": "Special bits set ({bits}); not editable here and {behavior}.",
+      "specialBitsPreserved": "preserved on apply",
+      "specialBitsDropped": "dropped on a recursive apply",
+      "applyRecursive": "Apply permissions recursively to all contents",
+      "apply": "Apply",
+      "cancel": "Cancel",
+      "close": "Close",
+      "failedChmod": "Failed to change permissions"
+    },
+    "errors": {
+      "operationFailed": "Operation failed",
+      "listDirFailed": "Failed to list directory",
+      "uploadFailed": "Upload failed",
+      "downloadFailed": "Download failed",
+      "deleteFailed": "Delete failed",
+      "createFileFailed": "Create file failed",
+      "createFolderFailed": "Create folder failed",
+      "pasteFailed": "Paste failed",
+      "dragOutFailed": "Drag out failed"
+    }
+  },
+  "transfers": {
+    "popover": {
+      "title": "Transfers",
+      "titleAria": "Transfers",
+      "clearCompleted": "Clear completed transfers",
+      "close": "Close transfers",
+      "noTransfers": "No transfers",
+      "noTransfersHint": "Drag files onto the explorer to upload",
+      "transferItemsAria": "Transfer items"
+    },
+    "row": {
+      "retryAria": "Retry {name}",
+      "retryTitle": "Retry transfer",
+      "cancelAria": "Cancel {name}",
+      "cancelTitle": "Cancel transfer",
+      "dismissAria": "Dismiss {name}",
+      "dismissTitle": "Dismiss",
+      "progressAria": "{name} {direction} progress",
+      "files": "{done}/{total} files"
+    }
+  },
+  "terminal": {
+    "local": "Local",
+    "search": {
+      "placeholder": "Find",
+      "ariaLabel": "Search terminal",
+      "noResults": "No results",
+      "matchCount": "{{index}} of {{count}}",
+      "prevMatchTitle": "Previous match (Shift+Enter)",
+      "prevMatchAria": "Previous match",
+      "nextMatchTitle": "Next match (Enter)",
+      "nextMatchAria": "Next match",
+      "matchCase": "Match case",
+      "caseSensitivityAria": "Toggle case sensitivity",
+      "useRegex": "Use regex",
+      "regexAria": "Toggle regex",
+      "closeTitle": "Close (Escape)",
+      "closeAria": "Close search"
+    },
+    "pane": {
+      "floatAria": "Float pane",
+      "splitAria": "Split pane",
+      "closeAria": "Close pane",
+      "closeTitle": "Close pane (⌘W)",
+      "direction": "Direction",
+      "horizontalSplit": "Horizontal split",
+      "verticalSplit": "Vertical split",
+      "forkSession": "Fork session",
+      "localTerminal": "Local terminal",
+      "savedHosts": "Saved Hosts",
+      "accentAria": "Accent colour",
+      "accentTitle": "Accent colour",
+      "renameHint": "Click to rename"
+    },
+    "disconnect": {
+      "errorAria": "Connection error",
+      "lostAria": "Connection lost",
+      "reconnect": "Reconnect",
+      "connecting": "Connecting",
+      "closeSession": "Close session",
+      "reconnectionFailed": "Reconnection failed"
+    },
+    "floating": {
+      "closeAria": "Close floating pane"
+    }
+  },
+  "portForwarding": {
+    "title": "Tunnels",
+    "description": "Forward local ports to remote services through SSH tunnels for secure database, API, and service access",
+    "searchPlaceholder": "Search rules…",
+    "searchAria": "Search forwarding rules",
+    "newRule": "New Rule",
+    "standalone": "Standalone",
+    "auto": "auto",
+    "connCount": "{count} conn",
+    "stopTunnel": "Stop Tunnel",
+    "startTunnel": "Start Tunnel",
+    "edit": "Edit",
+    "delete": "Delete",
+    "stopTunnelAria": "Stop tunnel",
+    "startTunnelAria": "Start tunnel",
+    "copyLocalhostAria": "Copy localhost address",
+    "noMatch": "No rules match \\u201C{query}\\u201D",
+    "emptyTitle": "No forwarding rules yet",
+    "emptyDescription": "Forward local ports to remote services through SSH tunnels",
+    "confirmDeleteTitle": "Delete this tunnel rule?",
+    "confirmDeleteMessage": "This tunnel rule will be permanently removed.",
+    "dialog": {
+      "editTitle": "Edit Rule",
+      "newTitle": "New Rule",
+      "cancel": "Cancel",
+      "save": "Save",
+      "create": "Create",
+      "connection": "Connection",
+      "host": "Host",
+      "noSavedHosts": "No saved hosts. Add a host first.",
+      "label": "Label",
+      "optional": "(optional)",
+      "labelPlaceholder": "My Database",
+      "description": "Description",
+      "descPlaceholder": "Production read replica for analytics…",
+      "ports": "Ports",
+      "localPort": "Local Port",
+      "remotePort": "Remote Port",
+      "options": "Options",
+      "bindAddress": "Bind Address",
+      "bindLocalOnly": "127.0.0.1 (local only)",
+      "bindAllInterfaces": "0.0.0.0 (all interfaces)",
+      "autoStart": "Auto-start",
+      "autoStartHint": "Start tunnel when host connects"
+    }
+  },
+  "s3": {
+    "buckets": "Buckets",
+    "refresh": "Refresh",
+    "noBuckets": "No buckets found",
+    "failedListBuckets": "Failed to list buckets",
+    "failedListObjects": "Failed to list objects",
+    "failedSwitchBucket": "Failed to switch bucket",
+    "downloadTitle": "Download \"{name}\"",
+    "uploadTitle": "Upload file"
+  },
+  "statusBar": {
+    "noActiveSession": "No active session",
+    "sessionCount": "{count} session",
+    "sessionCount_plural": "{count} sessions"
+  },
+  "importSshConfig": {
+    "title": "Import SSH Config",
+    "done": "Done",
+    "cancel": "Cancel",
+    "importing": "Importing…",
+    "importN": "Import {count} host",
+    "importN_plural": "Import {count} hosts",
+    "scanning": "Scanning SSH config…",
+    "browse": "Browse for config file",
+    "noHosts": "No hosts found in SSH config",
+    "tryDifferent": "Try a different file",
+    "defaultPath": "~/.ssh/config",
+    "change": "Change",
+    "selectedCount": "{importable} of {total} selected",
+    "all": "All",
+    "none": "None",
+    "pattern": "pattern",
+    "exists": "exists",
+    "imported": "{count} host imported",
+    "imported_plural": "{count} hosts imported",
+    "skipped": "{count} skipped",
+    "failedParse": "Failed to parse SSH config",
+    "failedImport": "Import failed",
+    "selectFileTitle": "Select SSH config file"
+  },
+  "updateDialog": {
+    "title": "Update available",
+    "skip": "Skip this version",
+    "later": "Later",
+    "install": "Install",
+    "description": "Zendo v{version} is available — you have v{appVersion}.",
+    "viewChangelog": "View changelog"
+  },
+  "dropOverwrite": {
+    "titleSingle": "Overwrite item?",
+    "titleMulti": "Overwrite {count} items?",
+    "cancel": "Cancel",
+    "overwriteSingle": "Overwrite",
+    "overwriteMulti": "Overwrite {count}",
+    "existsSingle": "{name} already exists here.",
+    "existsMulti": "{count} items already exist here.",
+    "hint": "Files are replaced; folders are merged, replacing only same-named files inside."
+  },
+  "editor": {
+    "launchFailed": "Couldn't open the editor. Configure one in Settings \\u2192 Editors."
+  },
+  "updater": {
+    "checkFailed": "Failed to check for updates",
+    "downloadFailed": "Download failed",
+    "restartFailed": "Couldn't restart automatically \\u2014 please reopen the app"
+  },
+  "health": {
+    "pinging": "Pinging host…",
+    "pingFailed": "Ping failed"
+  },
+  "session": {
+    "localTerminal": "Local Terminal"
   },
   "aria": {
-    "contextMenu": "Context menu"
+    "contextMenu": "Context menu",
+    "close": "Close",
+    "dismiss": "Dismiss",
+    "settingsSections": "Settings sections"
   }
 }

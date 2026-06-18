@@ -31,6 +31,8 @@ export interface Session {
   label: string;
   /** Distinguishes SSH remote sessions from local terminal sessions. */
   sessionType?: "ssh" | "local";
+  /** Per-pane accent colour (OKLCH string, default white). */
+  accent?: string;
 }
 
 export interface SshOutputPayload {
@@ -41,17 +43,6 @@ export interface SshOutputPayload {
 export interface SshStatusPayload {
   session_id: string;
   status: { status: ConnectionStatus; message?: string };
-}
-
-export interface HostGroup {
-  id: string;
-  name: string;
-  color: string;
-  icon: string | null;
-  sort_order: number;
-  default_username: string | null;
-  created_at: string;
-  updated_at: string;
 }
 
 export interface SavedHost {

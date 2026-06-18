@@ -1,4 +1,5 @@
 import { useEffect, useRef, useMemo, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
 import { useTransferStore } from "../../stores/transfer-store";
 import type { TransferEvent, TransferStatusValue } from "../../types";
@@ -48,6 +49,7 @@ interface TransferPopoverProps {
 }
 
 export function TransferPopover({ anchorRect, onClose }: TransferPopoverProps) {
+  const { t } = useTranslation();
   const transfers = useTransferStore((s) => s.transfers);
   const removeTransfer = useTransferStore((s) => s.removeTransfer);
   const clearFinished = useTransferStore((s) => s.clearFinished);
@@ -140,9 +142,9 @@ export function TransferPopover({ anchorRect, onClose }: TransferPopoverProps) {
   // ─── Summary text ───────────────────────────────────────────────────────────
 
   const summaryParts: string[] = [];
-  if (activeCount > 0) summaryParts.push(`${activeCount} active`);
-  if (queuedCount > 0) summaryParts.push(`${queuedCount} queued`);
-  if (finishedCount > 0) summaryParts.push(`${finishedCount} done`);
+  if (activeCount > 0) summaryParts.push(t("status.active", { count: activeCount }));
+  if (queuedCount > 0) summaryParts.push(t("status.queued_count", { count: queuedCount }));
+  if (finishedCount > 0) summaryParts.push(t("status.done_count", { count: finishedCount }));
 
   // ─── Render ─────────────────────────────────────────────────────────────────
 
@@ -150,7 +152,7 @@ export function TransferPopover({ anchorRect, onClose }: TransferPopoverProps) {
     <div
       ref={popoverRef}
       role="dialog"
-      aria-label="Transfers"
+      aria-label={t("transfers.popover.titleAria")}
       style={style}
       className={[
         "w-[340px] flex flex-col",
@@ -162,7 +164,7 @@ export function TransferPopover({ anchorRect, onClose }: TransferPopoverProps) {
       {/* Header */}
       <div className="flex items-center gap-2.5 px-3.5 py-2.5 border-b border-border/60 shrink-0">
         <span className="text-[length:var(--text-xs)] font-semibold text-text-primary">
-          Transfers
+          {t("transfers.popover.title")}
         </span>
 
         {summaryParts.length > 0 && (
@@ -177,8 +179,8 @@ export function TransferPopover({ anchorRect, onClose }: TransferPopoverProps) {
         {finishedCount > 0 && (
           <button
             onClick={handleClearFinished}
-            title="Clear completed transfers"
-            aria-label="Clear completed transfers"
+            title={t("transfers.popover.clearCompleted")}
+            aria-label={t("transfers.popover.clearCompleted")}
             className={[
               "flex items-center gap-1 px-2 py-1 rounded-md",
               "text-[length:var(--text-2xs)] font-medium",
@@ -187,15 +189,15 @@ export function TransferPopover({ anchorRect, onClose }: TransferPopoverProps) {
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
             ].join(" ")}
           >
-            Clear
+            {t("button.clear")}
           </button>
         )}
 
         {/* Close */}
         <button
           onClick={onClose}
-          title="Close"
-          aria-label="Close transfers"
+          title={t("button.close")}
+          aria-label={t("transfers.popover.close")}
           className={[
             "flex items-center justify-center w-7 h-7 rounded-md",
             "text-text-muted hover:text-text-primary hover:bg-bg-subtle",
@@ -213,7 +215,7 @@ export function TransferPopover({ anchorRect, onClose }: TransferPopoverProps) {
           className="overflow-y-auto flex-1"
           style={{ maxHeight: "min(400px, 50vh)" }}
           role="list"
-          aria-label="Transfer items"
+          aria-label={t("transfers.popover.transferItemsAria")}
         >
           {list.map((t) => (
             <TransferRow
@@ -228,10 +230,10 @@ export function TransferPopover({ anchorRect, onClose }: TransferPopoverProps) {
       ) : (
         <div className="flex flex-col items-center justify-center py-10 gap-2">
           <p className="text-[length:var(--text-xs)] text-text-muted">
-            No transfers
+            {t("transfers.popover.noTransfers")}
           </p>
           <p className="text-[length:var(--text-2xs)] text-text-muted/60">
-            Drag files onto the explorer to upload
+            {t("transfers.popover.noTransfersHint")}
           </p>
         </div>
       )}

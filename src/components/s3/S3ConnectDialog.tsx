@@ -3,7 +3,6 @@ import { useTranslation } from "react-i18next";
 import { Cloud } from "lucide-react";
 import { useS3Store } from "../../stores/s3-store";
 import { ModalShell, BTN_GHOST, BTN_SECONDARY, BTN_PRIMARY } from "../shared/ModalShell";
-import { useGroupsStore } from "../../stores/groups-store";
 import { CustomSelect } from "../shared/CustomSelect";
 import { S3_PROVIDERS } from "../../types";
 import type { S3Provider, S3Connection } from "../../types";
@@ -59,14 +58,10 @@ export function S3ConnectDialog({ onClose, editConnection }: S3ConnectDialogProp
   }, [provider, isEdit]);
 
 
-  const [groupId, setGroupId] = useState(editConnection?.group_id ?? "");
   const [color, setColor] = useState<string | null>(editConnection?.color ?? null);
   const [environment, setEnvironment] = useState(editConnection?.environment ?? "");
   const [notes, setNotes] = useState(editConnection?.notes ?? "");
 
-  const groups = useGroupsStore((s) => s.groups);
-  const loadGroups = useGroupsStore((s) => s.loadGroups);
-  useEffect(() => { void loadGroups(); }, [loadGroups]);
   const [saving, setSaving] = useState(false);
 
   // In edit mode, credentials are optional (leave blank to keep existing)
@@ -93,7 +88,6 @@ export function S3ConnectDialog({ onClose, editConnection }: S3ConnectDialogProp
           region: region.trim(),
           endpoint: endpoint.trim() || null,
           pathStyle,
-          groupId: groupId || null,
           color,
           environment: environment || null,
           notes: notes.trim() || null,
@@ -110,7 +104,6 @@ export function S3ConnectDialog({ onClose, editConnection }: S3ConnectDialogProp
           accessKey: accessKey.trim(),
           secretKey: secretKey.trim(),
           pathStyle,
-          groupId: groupId || null,
           color,
           environment: environment || null,
           notes: notes.trim() || null,
@@ -143,7 +136,6 @@ export function S3ConnectDialog({ onClose, editConnection }: S3ConnectDialogProp
         accessKey: accessKey.trim(),
         secretKey: secretKey.trim(),
         pathStyle,
-        groupId: groupId || null,
       });
 
       useS3Store.getState().openSession(sessionId, label.trim() || `${provider}/${bucket.trim()}`);
@@ -299,21 +291,6 @@ export function S3ConnectDialog({ onClose, editConnection }: S3ConnectDialogProp
           )}
 
           <SectionHeader>{t('hosts:s3dialog.appearance')}</SectionHeader>
-
-          {groups.length > 0 && (
-            <div>
-              <label className={labelClass}>{t('hosts:s3dialog.group')}</label>
-              <CustomSelect
-                value={groupId}
-                onChange={setGroupId}
-                placeholder={t('hosts:s3dialog.noGroup')}
-                options={[
-                  { value: "", label: t('hosts:s3dialog.noGroup') },
-                  ...groups.map((g) => ({ value: g.id, label: g.name })),
-                ]}
-              />
-            </div>
-          )}
 
           <div className="flex gap-3">
             <div className="flex-1">

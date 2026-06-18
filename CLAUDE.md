@@ -176,10 +176,11 @@ Frontend hooks listen for these: `useSshOutput` (per session), `useSshStatus` (g
 
 ### State management (Zustand stores)
 
-23 stores under `src/stores/`, each scoped to one domain. Key ones:
+24 stores under `src/stores/`, each scoped to one domain. Key ones:
 
-- **`tab-store`** — Unified tab bar. Tabs are typed: `terminal | sftp | s3 | transfer`. No page tabs — Connections, Transfers (dual-pane), and Settings live inside the **Home panel** (shown when `activeTabId === null`). The fixed Home button at the left of the tab bar toggles between the Home panel and terminal tabs. Right-click a tab for Rename / Duplicate. Tab order and active tab are tracked here; syncing with domain stores happens in `syncDomainStores()`.
-- **`session-store`** — SSH terminal sessions and their layout tree. A `LayoutNode` is a binary tree where leaf nodes are panes (one session per pane) and internal nodes are splits (horizontal/vertical with a 0–1 ratio). Supports split/unsplit/zoom/float operations. Each tab owns one layout tree. `floatingPanes` (Map<tabId, FloatingPaneInfo[]>) tracks panes popped out as standalone floating windows. Methods: `splitPane`, `unsplitPane`, `floatPane`, `removeFloatingPane`, `renameSession`.
+- **`tab-store`** — Unified tab bar. Tabs are typed: `terminal | sftp | s3 | transfer`. No page tabs — Connections, Transfers (dual-pane), and Settings live inside the **Home panel** (shown when `activeTabId === null`). The fixed Home button at the left of the tab bar toggles between the Home panel and terminal tabs. Right-click a tab for Rename / Duplicate / Pin-Unpin. Tab order and active tab are tracked here; syncing with domain stores happens in `syncDomainStores()`. Pinned tabs persist via `pinned-sync`.
+- **`session-store`** — SSH terminal sessions and their layout tree. A `LayoutNode` is a binary tree where leaf nodes are panes (one session per pane) and internal nodes are splits (horizontal/vertical with a 0–1 ratio). Supports split/unsplit/zoom/float operations. Each tab owns one layout tree. `floatingPanes` (Map<tabId, FloatingPaneInfo[]>) tracks panes popped out as standalone floating windows. Methods: `splitPane`, `unsplitPane`, `floatPane`, `removeFloatingPane`, `renameSession`, `setAccent`, `restorePinnedTab`.
+- **`pinned-sync`** — Persists pinned tabs to SQLite on every relevant mutation (split/unsplit/accent/rename/float). High-frequency ops (float drag/resize, split ratio) use throttled sync: first call saves immediately, then max once per 10s cooldown with a dirty flag that guarantees final-state persistence. Exports `syncPinnedTabs()` (immediate) and `syncPinnedTabsThrottled()` (cooldown).
 - **`terminal-instances`** — Module-level registry of xterm.js `Terminal` objects keyed by `sessionId`. The instance survives React remounts (e.g., during layout changes) so scrollback isn't lost. Owns the host DOM element; `Terminal.tsx` only attaches it.
 - **`terminal-registry`** — Module-level registry of xterm SearchAddon instances, consumed by TerminalSearchBar.
 - **`hosts-store`**, **`groups-store`**, **`s3-store`**, **`sftp-store`**, **`port-forward-store`**, **`settings-store`**, **`updater-store`**, **`transfer-store`**, **`toast-store`**, **`ui-store`**, **`health-store`**
@@ -275,6 +276,11 @@ Key pattern: `namespace:section.subsection.key` (e.g. `hosts:server.card.ping`, 
 - **E2E terminal access**: `Terminal.tsx` registers xterm instances on `window.__e2eTerminals` so test helpers can read/write without poking canvas pixels.
 - **E2E isolation**: Each test calls `resetApp()` which deletes `$XDG_DATA_HOME/com.macnev2013.anyscp` and calls `browser.reloadSession()`, giving each test a fresh SQLite DB.
 - **E2E data-testid convention**: `<component>-<element>` (e.g., `host-modal-password`, `data-entry-name`).
+- **Per-pane accent colours**: Each terminal pane has independent accent colour (OKLCH, default white `oklch(0.80 0 0)`). PaneHeader has a colour swatch button at top-left that opens a 9-colour preset popover. Accent controls border colour and xterm cursor colour (`oklchToHex()` helper in Terminal.tsx, uses canvas to convert OKLCH → hex).
+- **Pinned tab persistence**: Right-click tab → Pin/Unpin. Pinned tabs survive app restart with full split layouts and floating panes. Persistence is via `pinned-sync.ts`: `syncPinnedTabs()` calls `save_setting` on every mutation (split/unsplit/accent/rename/float). High-frequency ops (float drag/resize, split ratio) use `syncPinnedTabsThrottled()` — first call saves immediately, then max once per 10s cooldown with a dirty flag that ensures final state is persisted even on crash. Old flat-format descriptors (`{ type, hostId, label, accent }`) auto-migrate to the new `PinnedLayoutNode` tree format on load.
+- **WKWebView context menu**: `AppShell` blocks native `contextmenu` on all `<input>` / `<textarea>` elements globally via a document-level `contextmenu` event handler. Terminal right-click is repurposed for paste (when paste-button setting is "right").
+- **xterm.js v6 scrollbar**: Narrowed from default 20px to 3px via CSS `!important` in `theme.css` (`.xterm .xterm-scrollable-element > .scrollbar`). JS inline `width` requires `!important`.
+- **Terminal fit suppression during drag**: `suppressTerminalFits()` / `resumeTerminalFits()` in `terminal-instances.ts` prevents xterm from recalculating grid geometry on every mousemove during drag/resize, deferring fits to drag end. `ResizeObserver` in `Terminal.tsx` skips fits while suppressed and marks the session dirty instead.
 
 ### CSS / Theming
 
@@ -315,7 +321,7 @@ Tailwind CSS v4 with a custom theme system. Theme tokens are in `src/theme.css` 
 #### Verification before push
 
 ```bash
-pnpm test --run                    # All 15 files, 92 tests — must pass
+pnpm test --run                    # All 19 files, 132 tests — must pass
 cargo fmt --all --check            # Rust formatting — must pass
 cargo test                         # All Rust tests — must pass (180+)
 npx tsc --noEmit                   # Zero type errors
@@ -325,10 +331,11 @@ npx tsc --noEmit                   # Zero type errors
 
 #### Coverage of existing test files
 
-**Vitest (15 files, 92 tests):**
-- Stores: `hosts-store`, `groups-store`, `settings-store`, `s3-store`
-- Lib: `file-types`, `drop-conflicts`, `permissions`, `explorer-transport`
-- Components: `DropOverwriteDialog`, `ExplorerView.upload`, `Terminal.clipboard`, `ExplorerFileTable.doubleclick`, `FilePropertiesDialog`
+**Vitest (19 files, 132 tests):**
+- Stores: `hosts-store`, `settings-store`, `s3-store`, `session-store`, `tab-store`, `terminal-instances`
+- Lib: `file-types`, `drop-conflicts`, `permissions`, `explorer-transport`, `editor-errors`
+- Pinned-tab persistence: `pinned-sync`
+- Components: `DropOverwriteDialog`, `ExplorerView.upload`, `Terminal.clipboard`, `ExplorerFileTable.doubleclick`, `FilePropertiesDialog`, `Pane`
 - Providers: `local-provider`
 
 **Rust (14 modules with tests):**

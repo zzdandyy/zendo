@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { ChevronRight } from "lucide-react";
 
 interface PathBarProps {
@@ -10,6 +11,7 @@ interface PathBarProps {
  * segments. Clicking a segment navigates to that directory.
  */
 export function PathBar({ path, onNavigate }: PathBarProps) {
+  const { t } = useTranslation();
   // Split path into non-empty segments, preserving root
   const rawSegments = path.split("/").filter((s) => s.length > 0);
 
@@ -25,7 +27,7 @@ export function PathBar({ path, onNavigate }: PathBarProps) {
   return (
     <div
       className="bg-bg-surface border-b border-border px-4 h-10 flex items-center gap-0.5 overflow-x-auto no-select"
-      aria-label="Current path"
+      aria-label={t("explorer.toolbar.currentPathAria")}
     >
       {segments.map((seg, index) => {
         const isLast = index === segments.length - 1;
@@ -46,7 +48,7 @@ export function PathBar({ path, onNavigate }: PathBarProps) {
             <button
               onClick={() => !isLast && onNavigate(seg.fullPath)}
               disabled={isLast}
-              title={isLast ? undefined : `Navigate to ${seg.fullPath}`}
+              title={isLast ? undefined : t("explorer.toolbar.navigateTo", { path: seg.fullPath })}
               className={[
                 "px-1.5 py-0.5 rounded",
                 "text-[length:var(--text-sm)] transition-colors duration-[var(--duration-fast)]",

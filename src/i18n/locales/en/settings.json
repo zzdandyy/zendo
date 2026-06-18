@@ -5,18 +5,14 @@
   "sections": {
     "appearance": "Appearance",
     "terminal": "Terminal",
-    "explorer": "Explorer",
-    "transfers": "Transfers",
-    "editors": "Editors",
+    "files": "File Operations",
     "data": "Data",
     "about": "About & Updates"
   },
   "descriptions": {
     "appearance": "Theme and interface look.",
     "terminal": "Font, cursor, and scrollback history.",
-    "explorer": "How the file browser behaves.",
-    "transfers": "Control how files are transferred.",
-    "editors": "Editors used by \"Edit\" / \"Open With\" in the file browser.",
+    "files": "File browser, transfers, and editor settings.",
     "data": "Back up, restore, and reset your data.",
     "about": "App information, links, and updates."
   },
@@ -40,6 +36,7 @@
       "desc": "Switch between dark and light themes"
     },
     "dark": "Dark",
+    "brass": "Brass",
     "light": "Light",
     "accentColor": {
       "label": "Accent Color",
@@ -53,7 +50,8 @@
       "red": "Red",
       "orange": "Orange",
       "green": "Green",
-      "teal": "Teal"
+      "teal": "Teal",
+      "neutral": "Neutral"
     },
     "custom": "Custom",
     "customColor": "Custom color",
@@ -63,7 +61,16 @@
     "interfaceFont": {
       "label": "Interface Font",
       "desc": "Font for menus, labels, and panels"
-    }
+    },
+    "interfaceFontSize": {
+      "label": "UI Font Size",
+      "desc": "Base font size for the entire interface"
+    },
+    "hueWheelAria": "Accent hue"
+  },
+  "interface": {
+    "languageLabel": "Language / 语言",
+    "languageDesc": "Interface display language"
   },
   "terminal": {
     "fontFamily": {
@@ -121,10 +128,14 @@
       "desc": "Maximum simultaneous file transfers (1–10)"
     }
   },
+  "files": {
+    "explorer": "File Browser",
+    "transfers": "Transfers"
+  },
   "data": {
     "exportBackup": {
       "label": "Export encrypted backup",
-      "desc": "Save all hosts, groups, settings, and stored credentials to a single password-protected file."
+      "desc": "Save all hosts, settings, and stored credentials to a single password-protected file."
     },
     "exportButton": "Export…",
     "importBackup": {
@@ -134,7 +145,7 @@
     "importButton": "Import…",
     "clearAll": {
       "label": "Clear all data",
-      "desc": "Permanently delete every saved host, group, connection history entry, port-forward rule, and S3 connection — along with their stored credentials and all app preferences. Zendo restarts at first-launch state. This can't be undone."
+      "desc": "Permanently delete every saved host, port-forward rule, and S3 connection — along with their stored credentials and all app preferences. Zendo restarts at first-launch state. This can't be undone."
     },
     "clearAllButton": "Clear all data…"
   },
@@ -159,7 +170,7 @@
   },
   "resetModal": {
     "title": "Clear all data?",
-    "desc": "This permanently deletes <strong>all</strong> saved hosts, groups, history, port-forward rules, S3 connections, stored credentials, and preferences. Zendo will restart fresh. This action cannot be undone.",
+    "desc": "This permanently deletes <strong>all</strong> saved hosts, history, port-forward rules, S3 connections, stored credentials, and preferences. Zendo will restart fresh. This action cannot be undone.",
     "typeToConfirm": "Type <code>{{word}}</code> to confirm",
     "confirmWord": "DELETE",
     "clearButton": "Clear all data",

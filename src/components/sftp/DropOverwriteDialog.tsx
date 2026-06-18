@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { AlertTriangle } from "lucide-react";
 import { ModalShell, BTN_GHOST, BTN_PRIMARY } from "../shared/ModalShell";
 
@@ -20,13 +21,14 @@ export function DropOverwriteDialog({
   onConfirm,
   onCancel,
 }: DropOverwriteDialogProps) {
+  const { t } = useTranslation();
   const count = conflicts.length;
 
   return (
     <ModalShell
       open
       onClose={onCancel}
-      title={count === 1 ? "Overwrite item?" : `Overwrite ${count} items?`}
+      title={count === 1 ? t("dropOverwrite.titleSingle") : t("dropOverwrite.titleMulti", { count })}
       icon={AlertTriangle}
       iconVariant="danger"
       maxWidth="sm"
@@ -35,10 +37,10 @@ export function DropOverwriteDialog({
         <>
           {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
           <button autoFocus data-testid="explorer-overwrite-cancel" type="button" onClick={onCancel} className={BTN_GHOST}>
-            Cancel
+            {t("dropOverwrite.cancel")}
           </button>
           <button data-testid="explorer-overwrite-confirm-button" type="button" onClick={onConfirm} className={BTN_PRIMARY}>
-            {count === 1 ? "Overwrite" : `Overwrite ${count}`}
+            {count === 1 ? t("dropOverwrite.overwriteSingle") : t("dropOverwrite.overwriteMulti", { count })}
           </button>
         </>
       }
@@ -46,9 +48,9 @@ export function DropOverwriteDialog({
       <div className="flex flex-col gap-3">
         <p className="text-[length:var(--text-sm)] text-text-secondary">
           {count === 1 ? (
-            <><span className="font-mono text-text-primary">{conflicts[0]}</span> already exists here.</>
+            <><span className="font-mono text-text-primary">{conflicts[0]}</span> {t("dropOverwrite.existsSingle", { name: conflicts[0] })}</>
           ) : (
-            <>{count} items already exist here.</>
+            <>{t("dropOverwrite.existsMulti", { count })}</>
           )}
         </p>
         {count > 1 && (
@@ -59,7 +61,7 @@ export function DropOverwriteDialog({
           </ul>
         )}
         <p className="text-[length:var(--text-2xs)] text-text-muted">
-          Files are replaced; folders are merged, replacing only same-named files inside.
+          {t("dropOverwrite.hint")}
         </p>
         <p className="font-mono text-[length:var(--text-2xs)] text-text-muted truncate">{targetDir}</p>
       </div>

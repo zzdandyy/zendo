@@ -3,6 +3,7 @@ import { useCallback, useRef, useEffect } from "react";
 interface UseResizeHandleOptions {
   direction: "horizontal" | "vertical";
   onResize: (delta: number) => void;
+  onResizeStart?: () => void;
   onResizeEnd?: () => void;
 }
 
@@ -12,7 +13,7 @@ interface UseResizeHandleOptions {
  * Uses a full-screen overlay during drag to prevent xterm/WebGL canvases
  * from swallowing mouse events.
  */
-export function useResizeHandle({ direction, onResize, onResizeEnd }: UseResizeHandleOptions) {
+export function useResizeHandle({ direction, onResize, onResizeStart, onResizeEnd }: UseResizeHandleOptions) {
   const startPos = useRef(0);
   const isDragging = useRef(false);
   const overlayRef = useRef<HTMLDivElement | null>(null);
@@ -35,6 +36,7 @@ export function useResizeHandle({ direction, onResize, onResizeEnd }: UseResizeH
       e.stopPropagation();
       startPos.current = direction === "horizontal" ? e.clientX : e.clientY;
       isDragging.current = true;
+      onResizeStart?.();
 
       // Create a full-screen transparent overlay to capture all mouse events
       // This prevents xterm's WebGL canvas from intercepting mousemove

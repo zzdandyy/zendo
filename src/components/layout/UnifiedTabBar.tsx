@@ -4,6 +4,8 @@ import {
   X,
   House,
   Maximize2,
+  Pin,
+  PinOff,
   Columns2,
   Rows2,
   TerminalSquare,
@@ -36,6 +38,7 @@ export function UnifiedTabBar() {
   const tabOrder = useTabStore((s) => s.tabOrder);
   const tabs = useTabStore((s) => s.tabs);
   const activeTabId = useTabStore((s) => s.activeTabId);
+  const pinnedTabIds = useTabStore((s) => s.pinnedTabIds);
   const setActiveTab = useTabStore((s) => s.setActiveTab);
   const removeTab = useTabStore((s) => s.removeTab);
 
@@ -85,6 +88,17 @@ export function UnifiedTabBar() {
     y: number;
   } | null>(null);
 
+  // ── Pin / unpin ────────────────────────────────────────────────────────
+  const togglePin = useCallback((tabId: string, _tab: UnifiedTab) => {
+    setContextMenu(null);
+    const store = useTabStore.getState();
+    if (store.pinnedTabIds.has(tabId)) {
+      store.unpinTab(tabId);
+    } else {
+      store.pinTab(tabId);
+    }
+  }, []);
+
   // ── Inline rename ──────────────────────────────────────────────────────
   const [editingTabId, setEditingTabId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
@@ -99,14 +113,6 @@ export function UnifiedTabBar() {
     const newLabel = editValue.trim();
     if (newLabel) {
       useTabStore.getState().updateTabLabel(tabId, newLabel);
-      // Also update session-store label for terminal tabs
-      const tab = tabs.get(tabId);
-      if (tab?.type === "terminal") {
-        const firstSid = getFirstSessionIdFromTab(tabId);
-        if (firstSid) {
-          useSessionStore.getState().renameSession(firstSid, newLabel);
-        }
-      }
     }
     setEditingTabId(null);
   };
@@ -148,6 +154,7 @@ export function UnifiedTabBar() {
           sessionType: src.sessionType,
           status: "Connected" as import("../../types").ConnectionStatus,
           label: src.label,
+          accent: src.accent,
         });
       }
 
@@ -407,6 +414,13 @@ export function UnifiedTabBar() {
                 </span>
               )}
 
+              {/* Pin indicator */}
+              {pinnedTabIds.has(tabId) && (
+                <span className="shrink-0 text-[length:var(--text-2xs)] text-text-muted" aria-hidden="true">
+                  <Pin size={10} strokeWidth={2.5} />
+                </span>
+              )}
+
               {/* Zoom indicator */}
               {isZoomed && (
                 <span className="shrink-0 text-accent" aria-hidden="true" title={t('common:tab.zoomedPane')}>
@@ -525,23 +539,33 @@ export function UnifiedTabBar() {
       })()}
 
       {/* ── Right-click context menu ── */}
-      {contextMenu && (
-        <ContextMenu
-          items={[
-            {
-              label: t('common:tab.rename'),
-              onClick: () => startRename(contextMenu.tabId, contextMenu.tab.label),
-            },
-            {
-              label: t('common:tab.duplicate'),
-              onClick: () => { void duplicateTab(contextMenu.tabId, contextMenu.tab); },
-              disabled: contextMenu.tab.type !== "terminal",
-            },
-          ]}
-          position={{ x: contextMenu.x, y: contextMenu.y }}
-          onClose={() => setContextMenu(null)}
-        />
-      )}
+      {contextMenu && (() => {
+        const isPinned = useTabStore.getState().pinnedTabIds.has(contextMenu.tabId);
+        const canPin = contextMenu.tab.type === "terminal";
+        return (
+          <ContextMenu
+            items={[
+              {
+                label: isPinned ? t('common:tab.unpin') : t('common:tab.pin'),
+                icon: isPinned ? PinOff : Pin,
+                onClick: () => togglePin(contextMenu.tabId, contextMenu.tab),
+                disabled: !canPin,
+              },
+              {
+                label: t('common:tab.rename'),
+                onClick: () => startRename(contextMenu.tabId, contextMenu.tab.label),
+              },
+              {
+                label: t('common:tab.duplicate'),
+                onClick: () => { void duplicateTab(contextMenu.tabId, contextMenu.tab); },
+                disabled: contextMenu.tab.type !== "terminal",
+              },
+            ]}
+            position={{ x: contextMenu.x, y: contextMenu.y }}
+            onClose={() => setContextMenu(null)}
+          />
+        );
+      })()}
     </div>
   );
 }

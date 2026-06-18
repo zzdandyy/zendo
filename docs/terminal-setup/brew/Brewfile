@@ -1,0 +1,20 @@
+# Brewfile — install with: brew bundle --file=Brewfile
+# Terminal essentials only (not ALL your tools)
+
+# Shell & prompt
+brew "zsh"
+brew "starship"
+
+# Node.js
+brew "nvm"
+
+# Python
+brew "pyenv"
+
+# Rust (installed separately, but these help)
+# rustup-init is a cask now, handled by setup.sh
+
+# Useful CLI tools (minimal set)
+brew "git"
+brew "wget"
+brew "sshpass"

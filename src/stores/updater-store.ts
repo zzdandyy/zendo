@@ -153,7 +153,7 @@ export const useUpdaterStore = create<UpdaterState>((set, get) => ({
       const { relaunch } = await import("@tauri-apps/plugin-process");
       await relaunch();
     } catch (err) {
-      set({ status: "error", error: message(err, "Download failed") });
+      set({ status: "error", error: message(err, "Update download failed") });
     }
   },
 
@@ -162,7 +162,7 @@ export const useUpdaterStore = create<UpdaterState>((set, get) => ({
       const { relaunch } = await import("@tauri-apps/plugin-process");
       await relaunch();
     } catch (err) {
-      set({ status: "error", error: message(err, "Couldn't restart automatically — please reopen the app") });
+      set({ status: "error", error: message(err, "Couldn't restart – please reopen") });
     }
   },
 

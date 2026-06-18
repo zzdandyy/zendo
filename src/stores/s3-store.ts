@@ -136,7 +136,7 @@ export const useS3Store = create<S3State>((set, get) => ({
   },
 
   // Optimistically apply a drag-and-drop reordering, then persist it — mirrors
-  // hosts-store/groups-store. The UI updates instantly and the new order is
+  // hosts-store. The UI updates instantly and the new order is
   // sent to the backend in the background; on failure we roll back so the
   // displayed state never diverges from what's stored.
   reorderConnections: async (newOrder) => {

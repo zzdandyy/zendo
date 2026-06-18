@@ -20,30 +20,29 @@ export function TerminalPane({ sessionId, tabId }: {
   const session = useSessionStore((s) => s.sessions.get(sessionId));
   const isActive = useSessionStore((s) => s.activeSessionId === sessionId);
   const isZoomed = useSessionStore((s) => s.zoomedPaneId === sessionId);
-  const hasSplits = useSessionStore((s) => {
-    const tid = s.activeTerminalTabId;
-    if (!tid) return false;
-    const tab = s.tabs.get(tid);
-    return tab ? tab.layout.type === "split" : false;
-  });
   const setActiveSession = useSessionStore((s) => s.setActiveSession);
   const searchOpen = useTerminalSearchStore((s) => s.openSessions.has(sessionId));
 
   const showOverlay =
     session?.status === "Disconnected" || session?.status === "Error";
 
+  const accent = session?.accent ?? "oklch(0.80 0 0)";
+  const activeBorderStyle =
+    isActive || isZoomed
+      ? ({ borderColor: accent } as React.CSSProperties)
+      : undefined;
+
   return (
     <div
       className={[
-        "group/pane flex flex-col rounded-lg overflow-hidden border relative",
+        "group/pane flex flex-col rounded-lg overflow-hidden relative bg-bg-base",
         "transition-[border-color,box-shadow] duration-[var(--duration-fast)]",
         isZoomed
-          ? "fixed-zoom absolute inset-0 z-30 border-accent/40"
+          ? "fixed-zoom absolute inset-0 z-30 border-2"
           : "relative h-full w-full",
-        !isZoomed && isActive && hasSplits
-          ? "border-accent/40 shadow-[0_0_0_1px_oklch(var(--accent)/.12)]"
-          : !isZoomed ? "border-border/60" : "",
+        !isZoomed && !isActive ? "border border-white/15" : "border-2",
       ].join(" ")}
+      style={activeBorderStyle}
       onClick={() => {
         if (!isActive) setActiveSession(sessionId);
       }}

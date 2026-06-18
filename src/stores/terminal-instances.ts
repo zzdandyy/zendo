@@ -122,6 +122,7 @@ function createEntry(sessionId: string): TerminalEntry {
     lineHeight: settings.terminalLineHeight,
     letterSpacing: 0,
     scrollback: settings.terminalScrollback,
+    smoothScrollDuration: 0,
     theme: getTerminalTheme(),
     allowProposedApi: true,
   });
@@ -240,6 +241,56 @@ const unsubscribe = useSessionStore.subscribe((state) => {
     }
   }
 });
+
+// ─── Fit suppression during drag / resize ──────────────────────────────
+// When terminals are being resized rapidly (split drag, float resize), we
+// suppress fitAddon.fit() calls to avoid recalculating the terminal grid on
+// every mousemove — that dominates the frame budget when 2–3 terminals are
+// visible. Fits are deferred until the drag ends, then flushed in one batch.
+
+let _fitSuppressed = false;
+const _dirtySessions = new Set<string>();
+
+/** Suppress terminal fits globally. Call on drag/resize start. */
+export function suppressTerminalFits(): void {
+  _fitSuppressed = true;
+  // Blur any focused xterm textareas — when focused, xterm.js runs extra
+  // layout work on every container resize, which dominates the frame budget
+  // during drag/resize gestures.
+  for (const entry of instances.values()) {
+    const ta = entry.element.querySelector(".xterm-helper-textarea") as HTMLTextAreaElement | null;
+    if (ta && document.activeElement === ta) ta.blur();
+  }
+}
+
+/**
+ * Resume terminal fits and flush all pending fits.
+ * Call on drag/resize end. Uses double-rAF so the browser has laid out the
+ * final size before we ask xterm to measure and re-grid.
+ */
+export function resumeTerminalFits(): void {
+  _fitSuppressed = false;
+  if (_dirtySessions.size === 0) return;
+  const toFit = [..._dirtySessions];
+  _dirtySessions.clear();
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      for (const sid of toFit) {
+        const entry = instances.get(sid);
+        if (entry) entry.fitAddon.fit();
+      }
+    });
+  });
+}
+
+/** Called by Terminal's ResizeObserver. If suppressed, marks the session dirty instead of fitting. */
+export function shouldFit(sessionId: string): boolean {
+  if (_fitSuppressed) {
+    _dirtySessions.add(sessionId);
+    return false;
+  }
+  return true;
+}
 
 // On HMR, tear down the old subscription and dispose live instances so the
 // re-evaluated module starts from a clean Map instead of leaking a stale

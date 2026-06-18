@@ -144,7 +144,6 @@ export function HostsDashboard() {
         accessKey: "",
         secretKey: "",
         pathStyle: conn.path_style,
-        groupId: conn.group_id,
         color: conn.color,
         environment: conn.environment,
         notes: conn.notes,

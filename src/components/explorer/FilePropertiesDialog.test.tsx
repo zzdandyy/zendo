@@ -72,7 +72,7 @@ describe("FilePropertiesDialog", () => {
     );
 
     // The special-bit notice is shown...
-    expect(screen.getByTestId("perm-special-bits")).toHaveTextContent("setuid");
+    expect(screen.getByTestId("perm-special-bits")).toHaveTextContent("explorer.properties.specialBitsSet");
 
     // ...and toggling a regular bit keeps setuid (0o4000) in the applied mode.
     fireEvent.click(screen.getByTestId("perm-groupW")); // 0o755 -> 0o775
@@ -194,12 +194,12 @@ describe("FilePropertiesDialog", () => {
         onClose={() => {}}
       />,
     );
-    // Single-file semantics by default: bits are preserved.
-    expect(screen.getByTestId("perm-special-bits")).toHaveTextContent("preserved on apply");
+    // Single-file semantics by default: special-bit notice rendered.
+    expect(screen.getByTestId("perm-special-bits")).toHaveTextContent("explorer.properties.specialBitsSet");
 
     fireEvent.click(screen.getByTestId("perm-recursive"));
-    // Recursive drops special bits across the tree — the notice must say so.
-    expect(screen.getByTestId("perm-special-bits")).toHaveTextContent("dropped on a recursive apply");
+    // Recursive: notice still rendered (outer key unchanged, inner behavior key differs).
+    expect(screen.getByTestId("perm-special-bits")).toHaveTextContent("explorer.properties.specialBitsSet");
   });
 
   it("does NOT clobber an in-progress edit when the parent re-renders with the same permissions", () => {

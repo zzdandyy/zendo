@@ -41,7 +41,7 @@ export interface ModalShellProps {
   iconVariant?: "accent" | "danger";
   /**
    * Fully custom icon node — replaces the built-in icon container entirely.
-   * Use this when the icon has a dynamic/user-chosen color (e.g. GroupModal).
+   * Use this when the icon has a dynamic/user-chosen color (e.g. a host modal).
    */
   iconNode?: React.ReactNode;
   /** Panel max-width. Defaults to "lg". */

@@ -20,16 +20,6 @@ interface TransferPageProps {
   onLabelChange?: (label: string) => void;
 }
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
-
-function paneLabel(s: PaneSource | null): string {
-  if (!s) return "";
-  if (s.type === "local") return "Local";
-  if (s.type === "host") return s.label;
-  if (s.type === "s3") return s.label;
-  return "Unknown";
-}
-
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export function TransferPage({
@@ -39,6 +29,14 @@ export function TransferPage({
   onLabelChange,
 }: TransferPageProps) {
   const { t } = useTranslation();
+
+  function paneLabel(s: PaneSource | null): string {
+    if (!s) return "";
+    if (s.type === "local") return t("pane.localLabel");
+    if (s.type === "host") return s.label;
+    if (s.type === "s3") return s.label;
+    return t("pane.unknown");
+  }
 
   const [leftSource, setLeftSource] = useState<PaneSource>(initialLeft);
   const [rightSource, setRightSource] = useState<PaneSource | null>(initialRight);

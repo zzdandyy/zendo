@@ -27,7 +27,6 @@ import {
     openNewHostModal,
     waitForModalClosed,
 } from "../helpers/host.js";
-import { openNewGroupModal, fillGroupAndSave } from "../helpers/groups.js";
 import { backupExport, backupImport, factoryReset, dataCounts } from "../helpers/backup.js";
 
 const PASSWORD = "e2e-backup-pass-123";
@@ -75,14 +74,11 @@ describe("Settings → Data: backup & restore", () => {
 
     it("adds data, backs it up, clears it, then restores everything from the backup", async () => {
         const hostLabel = "Backup Target";
-        const groupName = "Backup Group";
 
-        // 1. Add data of several kinds (host + group on the dashboard).
+        // 1. Add data (host on the dashboard).
         await seedHost(hostLabel);
-        await openNewGroupModal();
-        await fillGroupAndSave(groupName);
 
-        expect(await dataCounts()).to.deep.equal({ hosts: 1, groups: 1 });
+        expect(await dataCounts()).to.deep.equal({ hosts: 1 });
 
         // 2. Take an encrypted backup.
         const path = tmpBackupPath();
@@ -100,7 +96,7 @@ describe("Settings → Data: backup & restore", () => {
         await factoryReset();
         await relaunchApp();
         await waitForDashboard();
-        expect(await dataCounts()).to.deep.equal({ hosts: 0, groups: 0 });
+        expect(await dataCounts()).to.deep.equal({ hosts: 0 });
         await assertHostAbsent(hostLabel);
         expect(await hostCardCount()).to.equal(0);
 
@@ -108,7 +104,7 @@ describe("Settings → Data: backup & restore", () => {
         await backupImport(PASSWORD, path);
         await relaunchApp();
         await waitForDashboard();
-        expect(await dataCounts()).to.deep.equal({ hosts: 1, groups: 1 });
+        expect(await dataCounts()).to.deep.equal({ hosts: 1 });
         await findHostCardByLabel(hostLabel);
         expect(await hostCardCount()).to.equal(1);
     });

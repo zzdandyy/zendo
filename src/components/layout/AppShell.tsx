@@ -9,6 +9,8 @@ import { useKeyboardShortcuts } from "../../hooks/use-keyboard-shortcuts";
 import { useSshStatus } from "../../hooks/use-ssh-status";
 import { useSftpTransfers } from "../../hooks/use-sftp-transfers";
 import type { ShortcutDef } from "../../hooks/use-keyboard-shortcuts";
+import type { PinnedLayoutNode } from "../../stores/tab-store";
+import type { LayoutNode } from "../../types";
 import { TerminalArea } from "../terminal";
 import { FloatingTerminal } from "../terminal/FloatingTerminal";
 import { UnifiedTabBar } from "./UnifiedTabBar";
@@ -22,11 +24,61 @@ import { usePortForwardEvents } from "../../hooks/use-port-forward-events";
 import { UpdateDialog } from "../updater/UpdateDialog";
 import { Toaster } from "../shared/Toaster";
 
+// ─── Pinned tab restore helpers ─────────────────────────────────────────────
+
+/** Flatten a PinnedLayoutNode tree into an ordered list of pane descriptors. */
+function flattenLayout(
+  node: PinnedLayoutNode,
+  out: { hostId?: string; label: string; accent?: string }[],
+): void {
+  if (node.type === "pane") {
+    out.push({ hostId: node.hostId, label: node.label, accent: node.accent });
+  } else {
+    flattenLayout(node.children[0], out);
+    flattenLayout(node.children[1], out);
+  }
+}
+
+/** Create a single session from a pane descriptor. Returns the new session ID. */
+async function createPinnedSession(
+  invoke: typeof import("@tauri-apps/api/core").invoke,
+  pd: { hostId?: string; label: string; accent?: string },
+): Promise<string> {
+  if (pd.hostId) {
+    const attemptId = crypto.randomUUID();
+    return await invoke<string>("connect_saved_host", { hostId: pd.hostId, attemptId });
+  }
+  return await invoke<string>("local_terminal_create");
+}
+
+/** Rebuild a LayoutNode tree from a PinnedLayoutNode, mapping pane indices → session IDs. */
+function buildLayoutTree(
+  node: PinnedLayoutNode,
+  sessionIds: (string | null)[],
+  nextIdx = { i: 0 },
+): LayoutNode | null {
+  if (node.type === "pane") {
+    const sid = sessionIds[nextIdx.i++];
+    if (!sid) return null;
+    return { type: "pane", sessionId: sid };
+  }
+  const left = buildLayoutTree(node.children[0], sessionIds, nextIdx);
+  const right = buildLayoutTree(node.children[1], sessionIds, nextIdx);
+  if (!left || !right) return left ?? right;
+  return {
+    type: "split",
+    direction: node.direction,
+    ratio: node.ratio,
+    children: [left, right],
+  };
+}
+
 export function AppShell() {
   const themeMode = useSettingsStore((s) => s.themeMode);
   const accentHue = useSettingsStore((s) => s.accentHue);
   const accentCustom = useSettingsStore((s) => s.accentCustom);
   const interfaceFont = useSettingsStore((s) => s.interfaceFont);
+  const interfaceFontSize = useSettingsStore((s) => s.interfaceFontSize);
   const activeTabId = useTabStore((s) => s.activeTabId);
   const allTabs = useTabStore((s) => s.tabs);
 
@@ -172,8 +224,124 @@ export function AppShell() {
     void useSettingsStore.getState().loadSettings();
   }, []);
 
-  // Check for updates once on launch
   const settingsLoaded = useSettingsStore((s) => s.loaded);
+
+  // Restore pinned tabs after settings load
+  const didRestorePinned = useRef(false);
+  useEffect(() => {
+    if (!settingsLoaded || didRestorePinned.current) return;
+    didRestorePinned.current = true;
+    void (async () => {
+      const settings = useSettingsStore.getState();
+      const pinned = settings.pinnedTabs;
+      if (pinned.length === 0) return;
+
+      const { invoke } = await import("@tauri-apps/api/core");
+      const { useHostsStore } = await import("../../stores/hosts-store");
+      await useHostsStore.getState().loadHosts();
+
+      const pinnedIds: string[] = [];
+
+      for (const desc of pinned) {
+        try {
+          if (desc.type !== "terminal") continue;
+
+          // Flatten the layout tree → list of pane descriptors with a path index
+          const paneDescs: { hostId?: string; label: string; accent?: string }[] = [];
+          flattenLayout(desc.layout, paneDescs);
+
+          // Floating pane descriptors (preserve position/size)
+          const fpDescs = desc.floatingPanes ?? [];
+
+          // Create all sessions (layout + floating) in parallel
+          const allDescs = [...paneDescs, ...fpDescs.map((f) => ({ hostId: f.hostId, label: f.label, accent: f.accent }))];
+          const sessionResults = await Promise.allSettled(
+            allDescs.map((pd) => createPinnedSession(invoke, pd)),
+          );
+
+          // Map index → new session ID
+          const sessionIds: (string | null)[] = sessionResults.map((r) =>
+            r.status === "fulfilled" ? r.value : null,
+          );
+
+          // Layout session IDs are the first paneDescs.length entries
+          const layoutSessionIds = sessionIds.slice(0, paneDescs.length);
+          const fpSessionIds = sessionIds.slice(paneDescs.length);
+
+          // Must have at least the first pane (tabId holder)
+          const tabId = layoutSessionIds[0];
+          if (!tabId) continue;
+
+          // Build a LayoutNode tree from the descriptor, mapping pane indices → session IDs
+          const builtLayout = buildLayoutTree(desc.layout, layoutSessionIds);
+          if (!builtLayout) continue;
+
+          // Helper to build a HostConfig
+          const buildHostConfig = (pd: { hostId?: string; label: string }) =>
+            pd.hostId
+              ? (() => {
+                  const host = useHostsStore.getState().hosts.find((h) => h.id === pd.hostId);
+                  return {
+                    host: host?.host ?? "",
+                    port: host?.port ?? 22,
+                    username: host?.username ?? "",
+                    label: host?.label ?? "",
+                    auth_method: { type: "password" as const, password: "" },
+                  } as import("../../types").HostConfig;
+                })()
+              : { host: "localhost", port: 0, username: "", label: pd.label || "Local Terminal", auth_method: { type: "password" as const, password: "" } } as import("../../types").HostConfig;
+
+          // Collect all created sessions for restorePinnedTab (layout + floating)
+          const storedSessions: Array<{ id: string; session: import("../../types").Session }> = [];
+          for (let i = 0; i < allDescs.length; i++) {
+            const sid = sessionIds[i];
+            if (!sid) continue;
+            const pd = allDescs[i];
+            storedSessions.push({
+              id: sid,
+              session: {
+                id: sid,
+                hostConfig: buildHostConfig(pd),
+                sessionType: pd.hostId ? "ssh" as const : "local" as const,
+                status: "Connected" as const,
+                label: pd.label,
+                accent: pd.accent,
+              },
+            });
+          }
+
+          // Build FloatingPaneInfo array for restored floating panes
+          const restoredFloating: import("../../stores/session-store").FloatingPaneInfo[] = [];
+          for (let i = 0; i < fpDescs.length; i++) {
+            const sid = fpSessionIds[i];
+            if (!sid) continue;
+            restoredFloating.push({
+              sessionId: sid,
+              x: fpDescs[i].x,
+              y: fpDescs[i].y,
+              width: fpDescs[i].width,
+              height: fpDescs[i].height,
+            });
+          }
+
+          useSessionStore.getState().restorePinnedTab(
+            tabId, builtLayout, storedSessions, desc.label,
+            restoredFloating.length > 0 ? restoredFloating : undefined,
+          );
+          useTabStore.getState().restoreTab({ type: "terminal", id: tabId, label: desc.label });
+          pinnedIds.push(tabId);
+        } catch {
+          // Skip tabs that can't reconnect
+        }
+      }
+
+      if (pinnedIds.length > 0) {
+        useTabStore.getState().setPinnedTabIds(pinnedIds);
+      }
+    })();
+  }, [settingsLoaded]);
+
+  // Check for updates once on launch
   const didUpdateCheck = useRef(false);
   useEffect(() => {
     if (!settingsLoaded || didUpdateCheck.current) return;
@@ -196,6 +364,17 @@ export function AppShell() {
   }, [interfaceFont]);
 
   useLayoutEffect(() => {
+    const base = interfaceFontSize;
+    // Scale all text variables proportionally from base (15px = 1.0).
+    // Ratios preserved from the original design scale.
+    document.documentElement.style.setProperty("--text-2xs", `${Math.round(base * 0.73)}px`);
+    document.documentElement.style.setProperty("--text-xs",  `${Math.round(base * 0.80)}px`);
+    document.documentElement.style.setProperty("--text-sm",  `${Math.round(base * 0.93)}px`);
+    document.documentElement.style.setProperty("--text-base", `${base}px`);
+    document.documentElement.style.setProperty("--text-lg",  `${Math.round(base * 1.13)}px`);
+  }, [interfaceFontSize]);
+
+  useLayoutEffect(() => {
     const st = document.documentElement.style;
     const props = ["--color-accent", "--color-accent-hover", "--color-accent-muted", "--color-border-focus", "--color-ring"];
     if (!accentCustom) {
@@ -212,20 +391,32 @@ export function AppShell() {
     document.documentElement.dataset.accentCustom = `${l} ${c} ${h}`;
   }, [accentCustom]);
 
+  // Block native context menu (cut/copy/paste) on all text inputs
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
+        e.preventDefault();
+      }
+    };
+    document.addEventListener("contextmenu", handler);
+    return () => document.removeEventListener("contextmenu", handler);
+  }, []);
+
   useSftpTransfers();
   usePortForwardEvents();
 
   const isHome = activeTabId === null;
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-bg-base no-select p-2 gap-2">
+    <div className="flex h-screen w-screen overflow-hidden bg-bg-base no-select p-2.5 gap-2.5">
       {/* Main content */}
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         {/* Unified tab bar — Home button + terminal/SFTP/S3 tabs */}
         <UnifiedTabBar />
 
         {/* Content area */}
-        <div className="flex-1 min-h-0 relative">
+        <div className="flex-1 min-h-0 relative" data-content-bounds>
           {isHome ? (
             <HomePanel />
           ) : (
@@ -240,7 +431,7 @@ export function AppShell() {
                   return (
                     <div
                       key={tabId}
-                      className={`absolute inset-0 px-2 pt-2 ${isVisible ? "z-10 visible" : "z-0 invisible"}`}
+                      className={`absolute inset-0 pt-2.5 ${isVisible ? "z-10 visible" : "z-0 invisible"}`}
                     >
                       <TerminalArea node={termTab.layout} tabId={tabId} />
                     </div>

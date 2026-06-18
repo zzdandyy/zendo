@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { Plus, Trash2, ArrowRight, Search, Wifi, Pencil, Copy, Clock, Plug } from "lucide-react";
 import { CustomSelect } from "../shared/CustomSelect";
 import { usePortForwardStore } from "../../stores/port-forward-store";
@@ -12,6 +13,7 @@ import type { PortForwardRule, SavedHost } from "../../types";
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function PortForwardingPage() {
+  const { t } = useTranslation();
   const rules = usePortForwardStore((s) => s.rules);
   const activeTunnels = usePortForwardStore((s) => s.activeTunnels);
   const loadRules = usePortForwardStore((s) => s.loadRules);
@@ -82,26 +84,26 @@ export function PortForwardingPage() {
 
     if (isActive) {
       items.push({
-        label: "Stop Tunnel",
+        label: t("portForwarding.stopTunnel"),
         onClick: () => void stopTunnel(rule.id),
       });
     } else {
       items.push({
-        label: "Start Tunnel",
+        label: t("portForwarding.startTunnel"),
         disabled: !rule.host_id,
         onClick: () => { if (rule.host_id) void startTunnel(rule.id, rule.host_id, rule); },
       });
     }
 
     items.push({
-      label: "Edit",
+      label: t("portForwarding.edit"),
       icon: Pencil,
       separator: true,
       onClick: () => setEditingRule(rule),
     });
 
     items.push({
-      label: "Delete",
+      label: t("portForwarding.delete"),
       icon: Trash2,
       danger: true,
       onClick: () => setDeletingRule(rule),
@@ -117,8 +119,8 @@ export function PortForwardingPage() {
 
           {/* ── Page title ── */}
           <div>
-            <h1 className="text-[length:var(--text-lg)] font-semibold text-text-primary">Tunnels</h1>
-            <p className="text-[length:var(--text-xs)] text-text-muted mt-1">Forward local ports to remote services through SSH tunnels for secure database, API, and service access</p>
+            <h1 className="text-[length:var(--text-lg)] font-semibold text-text-primary">{t("portForwarding.title")}</h1>
+            <p className="text-[length:var(--text-xs)] text-text-muted mt-1">{t("portForwarding.description")}</p>
           </div>
 
           {/* ── Search bar ── */}
@@ -134,8 +136,8 @@ export function PortForwardingPage() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Escape") setQuery(""); }}
-              placeholder="Search rules..."
-              aria-label="Search forwarding rules"
+              placeholder={t("portForwarding.searchPlaceholder")}
+              aria-label={t("portForwarding.searchAria")}
               className={[
                 "w-full pl-10 pr-4 py-2.5 rounded-xl text-[length:var(--text-sm)]",
                 "bg-bg-surface border border-border text-text-primary placeholder:text-text-muted",
@@ -157,10 +159,10 @@ export function PortForwardingPage() {
                 "transition-all duration-[var(--duration-fast)]",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               ].join(" ")}
-              title="New Rule"
+              title={t("portForwarding.newRule")}
             >
               <Plus size={14} strokeWidth={2.2} aria-hidden="true" />
-              New Rule
+              {t("portForwarding.newRule")}
             </button>
           </div>
 
@@ -169,7 +171,7 @@ export function PortForwardingPage() {
             grouped.map((group) => {
               const hostLabel = group.host
                 ? (group.host.label || `${group.host.username}@${group.host.host}`)
-                : "Standalone";
+                : t("portForwarding.standalone");
 
               return (
                 <section key={group.host?.id ?? "__standalone__"} aria-labelledby={`pf-group-${group.host?.id ?? "standalone"}`}>
@@ -222,7 +224,7 @@ export function PortForwardingPage() {
                             <button
                               role="switch"
                               aria-checked={isActive}
-                              aria-label={isActive ? "Stop tunnel" : "Start tunnel"}
+                              aria-label={isActive ? t("portForwarding.stopTunnelAria") : t("portForwarding.startTunnelAria")}
                               disabled={isStarting || (!isActive && !rule.host_id)}
                               onClick={() => {
                                 if (isActive) {
@@ -259,8 +261,8 @@ export function PortForwardingPage() {
                                 e.stopPropagation();
                                 void navigator.clipboard.writeText(`localhost:${tunnel?.local_port ?? rule.local_port}`);
                               }}
-                              title="Copy localhost address"
-                              aria-label="Copy localhost address"
+                              title={t("portForwarding.copyLocalhostAria")}
+                              aria-label={t("portForwarding.copyLocalhostAria")}
                               className="p-0.5 rounded text-text-muted/0 group-hover:text-text-muted hover:!text-text-primary transition-all duration-[var(--duration-fast)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             >
                               <Copy size={11} strokeWidth={2} />
@@ -270,7 +272,7 @@ export function PortForwardingPage() {
                           {/* Meta: connections, last used */}
                           <div className="flex items-center gap-2 text-[length:var(--text-2xs)] text-text-muted/60">
                             {isActive && tunnel && tunnel.connections > 0 && (
-                              <span>{tunnel.connections} conn</span>
+                              <span>{t("portForwarding.connCount", { count: tunnel.connections })}</span>
                             )}
                             {rule.last_used_at && !isActive && (
                               <span className="flex items-center gap-1">
@@ -280,7 +282,7 @@ export function PortForwardingPage() {
                             )}
                             {rule.auto_start && (
                               <span className="px-1 py-px rounded bg-bg-subtle text-[9px] uppercase tracking-wide font-semibold">
-                                auto
+                                {t("portForwarding.auto")}
                               </span>
                             )}
                           </div>
@@ -300,16 +302,16 @@ export function PortForwardingPage() {
             })
           ) : rules.length > 0 && query.trim() ? (
             <p className="text-[length:var(--text-sm)] text-text-muted py-8 text-center">
-              No rules match &ldquo;{query}&rdquo;
+              {t("portForwarding.noMatch", { query })}
             </p>
           ) : (
             <div className="flex flex-col items-center justify-center py-16 gap-3">
               <Wifi size={30} strokeWidth={1.2} className="text-text-muted/30" />
               <p className="text-[length:var(--text-sm)] text-text-muted">
-                No forwarding rules yet
+                {t("portForwarding.emptyTitle")}
               </p>
               <p className="text-[length:var(--text-xs)] text-text-muted/60 text-center max-w-xs">
-                Forward local ports to remote services through SSH tunnels
+                {t("portForwarding.emptyDescription")}
               </p>
             </div>
           )}
@@ -355,8 +357,8 @@ export function PortForwardingPage() {
 
       <ConfirmDangerDialog
         open={deletingRule !== null}
-        title="Delete this tunnel rule?"
-        message="This tunnel rule will be permanently removed."
+        title={t("portForwarding.confirmDeleteTitle")}
+        message={t("portForwarding.confirmDeleteMessage")}
         onCancel={() => setDeletingRule(null)}
         onConfirm={() => {
           const rule = deletingRule;
@@ -406,6 +408,7 @@ function RuleDialog({
   onSubmit: (rule: Omit<PortForwardRule, "id" | "enabled" | "created_at">) => void;
   onCancel: () => void;
 }) {
+  const { t } = useTranslation();
   const isEdit = !!rule;
   const [hostId, setHostId] = useState(rule?.host_id ?? hosts[0]?.id ?? "");
   const [label, setLabel] = useState(rule?.label ?? "");
@@ -452,26 +455,26 @@ function RuleDialog({
     <ModalShell
       open
       onClose={onCancel}
-      title={isEdit ? "Edit Rule" : "New Rule"}
+      title={isEdit ? t("portForwarding.dialog.editTitle") : t("portForwarding.dialog.newTitle")}
       icon={Plug}
       maxWidth="lg"
       scrollable
       testId="rule-dialog"
       footer={
         <>
-          <button type="button" onClick={onCancel} className={BTN_GHOST}>Cancel</button>
+          <button type="button" onClick={onCancel} className={BTN_GHOST}>{t("portForwarding.dialog.cancel")}</button>
           <button form="rule-dialog-form" type="submit" data-testid="rule-dialog-save" disabled={!canSubmit} className={BTN_PRIMARY}>
-            {isEdit ? "Save" : "Create"}
+            {isEdit ? t("portForwarding.dialog.save") : t("portForwarding.dialog.create")}
           </button>
         </>
       }
     >
         <form id="rule-dialog-form" onSubmit={handleSubmit} className="flex flex-col gap-3.5">
-          <SectionHeader>Connection</SectionHeader>
+          <SectionHeader>{t("portForwarding.dialog.connection")}</SectionHeader>
 
           {/* Host */}
           <div>
-            <label htmlFor="pf-host" className={labelClass}>Host</label>
+            <label htmlFor="pf-host" className={labelClass}>{t("portForwarding.dialog.host")}</label>
             {hosts.length > 0 ? (
               <CustomSelect
                 id="pf-host"
@@ -485,7 +488,7 @@ function RuleDialog({
               />
             ) : (
               <p className="text-[length:var(--text-xs)] text-text-muted py-1.5">
-                No saved hosts. Add a host first.
+                {t("portForwarding.dialog.noSavedHosts")}
               </p>
             )}
           </div>
@@ -493,8 +496,8 @@ function RuleDialog({
           {/* Label */}
           <div>
             <label htmlFor="pf-label" className={labelClass}>
-              Label
-              <span className="ml-1 text-text-muted font-normal">(optional)</span>
+              {t("portForwarding.dialog.label")}
+              <span className="ml-1 text-text-muted font-normal">{t("portForwarding.dialog.optional")}</span>
             </label>
             <input
               id="pf-label"
@@ -502,7 +505,7 @@ function RuleDialog({
               type="text"
               value={label}
               onChange={(e) => setLabel(e.target.value)}
-              placeholder="My Database"
+              placeholder={t("portForwarding.dialog.labelPlaceholder")}
               className={inputClass}
             />
           </div>
@@ -510,20 +513,20 @@ function RuleDialog({
           {/* Description */}
           <div>
             <label htmlFor="pf-desc" className={labelClass}>
-              Description
-              <span className="ml-1 text-text-muted font-normal">(optional)</span>
+              {t("portForwarding.dialog.description")}
+              <span className="ml-1 text-text-muted font-normal">{t("portForwarding.dialog.optional")}</span>
             </label>
             <textarea
               id="pf-desc"
               rows={2}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Production read replica for analytics..."
+              placeholder={t("portForwarding.dialog.descPlaceholder")}
               className={`${inputClass} resize-none`}
             />
           </div>
 
-          <SectionHeader>Ports</SectionHeader>
+          <SectionHeader>{t("portForwarding.dialog.ports")}</SectionHeader>
 
           {/* Preset buttons */}
           {!isEdit && (
@@ -550,7 +553,7 @@ function RuleDialog({
           {/* Port inputs */}
           <div className="flex gap-3 items-end">
             <div className="flex-1">
-              <label htmlFor="pf-local-port" className={labelClass}>Local Port</label>
+              <label htmlFor="pf-local-port" className={labelClass}>{t("portForwarding.dialog.localPort")}</label>
               <input
                 id="pf-local-port"
                 data-testid="rule-local-port"
@@ -567,7 +570,7 @@ function RuleDialog({
             <ArrowRight size={15} strokeWidth={2} className="text-text-muted/40 mb-3 shrink-0" />
 
             <div className="flex-1">
-              <label htmlFor="pf-remote-port" className={labelClass}>Remote Port</label>
+              <label htmlFor="pf-remote-port" className={labelClass}>{t("portForwarding.dialog.remotePort")}</label>
               <input
                 id="pf-remote-port"
                 data-testid="rule-remote-port"
@@ -582,18 +585,18 @@ function RuleDialog({
             </div>
           </div>
 
-          <SectionHeader>Options</SectionHeader>
+          <SectionHeader>{t("portForwarding.dialog.options")}</SectionHeader>
 
           {/* Bind address */}
           <div>
-            <label htmlFor="pf-bind" className={labelClass}>Bind Address</label>
+            <label htmlFor="pf-bind" className={labelClass}>{t("portForwarding.dialog.bindAddress")}</label>
             <CustomSelect
               id="pf-bind"
               value={bindAddress}
               onChange={setBindAddress}
               options={[
-                { value: "127.0.0.1", label: "127.0.0.1 (local only)" },
-                { value: "0.0.0.0", label: "0.0.0.0 (all interfaces)" },
+                { value: "127.0.0.1", label: t("portForwarding.dialog.bindLocalOnly") },
+                { value: "0.0.0.0", label: t("portForwarding.dialog.bindAllInterfaces") },
               ]}
             />
           </div>
@@ -601,8 +604,8 @@ function RuleDialog({
           {/* Auto-start */}
           <div className="flex items-center justify-between gap-3">
             <div>
-              <span className={labelClass}>Auto-start</span>
-              <p className="text-[length:var(--text-2xs)] text-text-muted">Start tunnel when host connects</p>
+              <span className={labelClass}>{t("portForwarding.dialog.autoStart")}</span>
+              <p className="text-[length:var(--text-2xs)] text-text-muted">{t("portForwarding.dialog.autoStartHint")}</p>
             </div>
             <button
               type="button"

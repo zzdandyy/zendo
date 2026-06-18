@@ -5,7 +5,7 @@ import { useSettingsStore } from "../../stores/settings-store";
 import { CustomSelect, type SelectOption } from "../shared/CustomSelect";
 import { useUpdaterStore } from "../../stores/updater-store";
 import { toast } from "../../stores/toast-store";
-import { RefreshCw, CheckCircle2, AlertCircle, Palette, SquareTerminal, ArrowUpDown, Info, ExternalLink, Check, FileCode, Plus, Trash2, FolderOpen, Star, Search, Database, Download, Upload, ShieldCheck } from "lucide-react";
+import { RefreshCw, CheckCircle2, AlertCircle, Palette, SquareTerminal, Info, ExternalLink, Check, Plus, Trash2, FolderOpen, Star, Search, Database, Download, Upload, ShieldCheck } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { CursorStyle, ThemeMode, EditorConfig, PasteButton, DoubleClickAction } from "../../stores/settings-store";
 
@@ -47,14 +47,12 @@ const REPO_URL = "https://github.com/zzdandyy/zendo";
 // Each settings category is a section here. To add a new category, add an entry
 // to SECTIONS, a description, and render its content in <SectionContent />.
 
-type SectionId = "appearance" | "terminal" | "explorer" | "transfers" | "editors" | "data" | "about";
+type SectionId = "appearance" | "terminal" | "files" | "data" | "about";
 
 const SECTIONS: { id: SectionId; icon: LucideIcon }[] = [
   { id: "appearance", icon: Palette },
   { id: "terminal", icon: SquareTerminal },
-  { id: "explorer", icon: FolderOpen },
-  { id: "transfers", icon: ArrowUpDown },
-  { id: "editors", icon: FileCode },
+  { id: "files", icon: FolderOpen },
   { id: "data", icon: Database },
   { id: "about", icon: Info },
 ];
@@ -85,7 +83,7 @@ export function SettingsPage() {
       <div className="flex flex-1 min-h-0">
         {/* Sidebar */}
         <nav
-          aria-label="Settings sections"
+          aria-label={t("aria.settingsSections")}
           className="w-56 shrink-0 flex flex-col gap-1 px-3 py-4 border-r border-border/50 bg-bg-surface/40 overflow-y-auto no-select rounded-l-xl"
         >
           <h2 className="px-3 pt-1 pb-2 text-[length:var(--text-2xs)] font-semibold uppercase tracking-wider text-text-muted">
@@ -122,7 +120,7 @@ export function SettingsPage() {
         </nav>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto bg-bg-base rounded-r-xl">
+        <div className="flex-1 overflow-y-auto bg-bg-base rounded-r-xl [scrollbar-gutter:stable]">
           <div className="max-w-4xl mx-auto px-8 py-6">
             {/* Section header */}
             <div className="mb-6">
@@ -150,12 +148,14 @@ function SectionContent({ section }: { section: SectionId }) {
       return <AppearanceSettings />;
     case "terminal":
       return <TerminalSettings />;
-    case "explorer":
-      return <ExplorerSettings />;
-    case "transfers":
-      return <TransferSettings />;
-    case "editors":
-      return <EditorsSettings />;
+    case "files":
+      return (
+        <>
+          <ExplorerSettings />
+          <TransferSettings />
+          <EditorsSettings />
+        </>
+      );
     case "data":
       return <DataSettings />;
     case "about":
@@ -199,9 +199,9 @@ const INTERFACE_FONT_CANDIDATES: { value: string; label: string; family?: string
 ];
 
 // Monospace candidates for the terminal. The default matches the store's
-// terminalFontFamily so it selects correctly; JetBrains Mono is bundled.
+// terminalFontFamily so it selects correctly; JB Mono NF is bundled.
 const TERMINAL_FONT_CANDIDATES: FontCandidate[] = [
-  { value: "'JetBrains Mono', 'Fira Code', 'SF Mono', Menlo, monospace", label: "JetBrains Mono (Default)" },
+  { value: "'JB Mono NF', 'JetBrains Mono', 'FiraCode Nerd Font', 'Fira Code', 'SF Mono', Menlo, monospace", label: "JB Mono NF (Default)" },
   { value: "monospace", label: "System Monospace" },
   { value: "'Cascadia Code', monospace", label: "Cascadia Code", family: "Cascadia Code" },
   { value: "'Cascadia Mono', monospace", label: "Cascadia Mono", family: "Cascadia Mono" },
@@ -288,6 +288,8 @@ function AppearanceSettings() {
   const setAccentCustom = useSettingsStore((s) => s.setAccentCustom);
   const interfaceFont = useSettingsStore((s) => s.interfaceFont);
   const setInterfaceFont = useSettingsStore((s) => s.setInterfaceFont);
+  const interfaceFontSize = useSettingsStore((s) => s.interfaceFontSize);
+  const setInterfaceFontSize = useSettingsStore((s) => s.setInterfaceFontSize);
   const lang = useSettingsStore((s) => s.lang);
   const setLang = useSettingsStore((s) => s.setLang);
 
@@ -296,6 +298,9 @@ function AppearanceSettings() {
   const [wheelOpen, setWheelOpen] = useState(false);
   const customRef = useRef<HTMLDivElement>(null);
   const isCustom = accentCustom !== null;
+  // Neutral preset uses setAccentCustom too, but shouldn't light up the
+  // rainbow custom button.
+  const isNeutral = isCustom && accentCustom.c === 0.005;
   const working = accentCustom ?? { l: 0.70, c: 0.15, h: accentHue };
   const workingColor = `oklch(${working.l} ${working.c} ${working.h})`;
   const updateCustom = (patch: Partial<typeof working>) => setAccentCustom({ ...working, ...patch });
@@ -334,14 +339,15 @@ function AppearanceSettings() {
           <p className={LABEL_CLASS}>{t('settings:appearance.colorTheme.label')}</p>
           <p className={DESC_CLASS}>{t('settings:appearance.colorTheme.desc')}</p>
         </div>
-        <SegmentedControl<ThemeMode>
-          id="s-light-theme"
+        <CustomSelect
           value={themeMode}
-          onChange={setThemeMode}
+          onChange={(v) => setThemeMode(v as ThemeMode)}
           options={[
             { value: "dark", label: t('settings:appearance.dark') },
+            { value: "brass", label: t('settings:appearance.brass') },
             { value: "light", label: t('settings:appearance.light') },
           ]}
+          className="w-36 shrink-0"
         />
       </SettingRow>
 
@@ -374,6 +380,23 @@ function AppearanceSettings() {
             );
           })}
 
+          {/* Neutral — white / gray */}
+          <button
+            type="button"
+            title={t('settings:appearance.presets.neutral')}
+            aria-label={t('settings:appearance.presets.neutral')}
+            aria-pressed={isNeutral}
+            data-testid="s-accent-neutral"
+            onClick={() => setAccentCustom({ l: 0.70, c: 0.005, h: 260 })}
+            className="relative flex items-center justify-center w-6 h-6 rounded-full shrink-0 transition-transform duration-[var(--duration-fast)] hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring border border-border/40"
+            style={{
+              backgroundColor: `oklch(0.70 0.005 260)`,
+              boxShadow: isNeutral ? `0 0 0 2px var(--color-bg-surface), 0 0 0 4px oklch(0.70 0.005 260)` : undefined,
+            }}
+          >
+            {isNeutral && <Check size={13} strokeWidth={3} className="text-black/50" />}
+          </button>
+
           {/* Custom — a rainbow swatch that opens the hue wheel */}
           <div className="relative" ref={customRef}>
             <button
@@ -382,18 +405,18 @@ function AppearanceSettings() {
               aria-label={t('settings:appearance.customColor')}
               aria-haspopup="dialog"
               aria-expanded={wheelOpen}
-              aria-pressed={isCustom}
+              aria-pressed={isCustom && !isNeutral}
               data-testid="s-accent-custom"
               onClick={() => setWheelOpen((o) => !o)}
               className="relative flex items-center justify-center w-6 h-6 rounded-full shrink-0 transition-transform duration-[var(--duration-fast)] hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               style={{
-                background: isCustom
+                background: isCustom && !isNeutral
                   ? workingColor
                   : "conic-gradient(oklch(0.70 0.15 0), oklch(0.70 0.15 60), oklch(0.70 0.15 120), oklch(0.70 0.15 180), oklch(0.70 0.15 240), oklch(0.70 0.15 300), oklch(0.70 0.15 360))",
-                boxShadow: isCustom ? `0 0 0 2px var(--color-bg-surface), 0 0 0 4px ${workingColor}` : undefined,
+                boxShadow: isCustom && !isNeutral ? `0 0 0 2px var(--color-bg-surface), 0 0 0 4px ${workingColor}` : undefined,
               }}
             >
-              {isCustom && <Check size={13} strokeWidth={3} className="text-white [filter:drop-shadow(0_1px_1px_rgb(0_0_0/0.5))]" />}
+              {isCustom && !isNeutral && <Check size={13} strokeWidth={3} className="text-white [filter:drop-shadow(0_1px_1px_rgb(0_0_0/0.5))]" />}
             </button>
 
             {wheelOpen && (
@@ -452,11 +475,20 @@ function AppearanceSettings() {
         />
       </SettingRow>
 
+      {/* UI font size */}
+      <SettingRow>
+        <div>
+          <p className={LABEL_CLASS}>{t('settings:appearance.interfaceFontSize.label')}</p>
+          <p className={DESC_CLASS}>{t('settings:appearance.interfaceFontSize.desc')}</p>
+        </div>
+        <RangeSetting id="s-interface-font-size" value={interfaceFontSize} min={11} max={20} step={1} unit="px" onChange={setInterfaceFontSize} />
+      </SettingRow>
+
       {/* Language */}
       <SettingRow>
         <div>
-          <p className={LABEL_CLASS}>Language / 语言</p>
-          <p className={DESC_CLASS}>Interface display language</p>
+          <p className={LABEL_CLASS}>{t('settings:interface.languageLabel')}</p>
+          <p className={DESC_CLASS}>{t('settings:interface.languageDesc')}</p>
         </div>
         <SegmentedControl<"en" | "zh">
           id="s-lang"
@@ -479,6 +511,7 @@ function AppearanceSettings() {
 function HueWheel({ hue, onChange, size = 96, l = 0.70, c = 0.15 }: {
   hue: number; onChange: (h: number) => void; size?: number; l?: number; c?: number;
 }) {
+  const { t } = useTranslation();
   const ref = useRef<HTMLDivElement>(null);
 
   const setFromPointer = useCallback((clientX: number, clientY: number) => {
@@ -506,7 +539,7 @@ function HueWheel({ hue, onChange, size = 96, l = 0.70, c = 0.15 }: {
     <div
       ref={ref}
       role="slider"
-      aria-label="Accent hue"
+      aria-label={t('settings:appearance.hueWheelAria')}
       aria-valuemin={0}
       aria-valuemax={360}
       aria-valuenow={hue}
@@ -1659,20 +1692,36 @@ function RangeSetting({ id, value, min, max, step, decimals = 0, unit = "", onCh
   unit?: string;
   onChange: (v: number) => void;
 }) {
+  const pct = ((value - min) / (max - min)) * 100;
+
   return (
     <div className="flex items-center gap-3 shrink-0">
-      <input
-        id={id}
-        data-testid={id}
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="w-36 h-1.5 cursor-pointer"
-        style={{ accentColor: "var(--color-accent)" }}
-      />
+      <div className="relative w-36 h-3 flex items-center">
+        {/* Track (background) */}
+        <div className="absolute inset-x-0 h-1.5 rounded-full bg-bg-muted" />
+        {/* Track (fill) */}
+        <div
+          className="absolute inset-y-0 left-0 h-1.5 rounded-full bg-accent"
+          style={{ width: `${pct}%`, top: "50%", transform: "translateY(-50%)" }}
+        />
+        {/* Thumb (custom dot) */}
+        <div
+          className="absolute w-3 h-3 rounded-full bg-accent shadow-sm -translate-x-1/2 top-1/2 -translate-y-1/2"
+          style={{ left: `${pct}%` }}
+        />
+        {/* Native input (invisible, handles interaction) */}
+        <input
+          id={id}
+          data-testid={id}
+          type="range"
+          min={min}
+          max={max}
+          step={step}
+          value={value}
+          onChange={(e) => onChange(Number(e.target.value))}
+          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+        />
+      </div>
       <span className="w-10 shrink-0 text-right text-[length:var(--text-sm)] tabular-nums text-text-secondary">
         {value.toFixed(decimals)}{unit}
       </span>

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { AlertCircle, CheckCircle2, Info, X } from "lucide-react";
 import { useToastStore, type ToastKind } from "../../stores/toast-store";
 
@@ -15,6 +16,7 @@ const ACCENTS: Record<ToastKind, string> = {
 
 /** Renders the stack of active toasts. Mount once at the app root. */
 export function Toaster() {
+  const { t: tt } = useTranslation();
   const toasts = useToastStore((s) => s.toasts);
   const dismiss = useToastStore((s) => s.dismiss);
 
@@ -37,7 +39,7 @@ export function Toaster() {
             <button
               type="button"
               onClick={() => dismiss(t.id)}
-              aria-label="Dismiss"
+              aria-label={tt("aria.dismiss")}
               className="shrink-0 -mr-1 -mt-0.5 p-1 rounded-md text-text-muted hover:text-text-primary hover:bg-bg-subtle transition-colors duration-[var(--duration-fast)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <X size={14} strokeWidth={2} />

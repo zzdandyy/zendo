@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Upload, FolderPlus, FilePlus, RefreshCw, ChevronRight, Home, Loader2, Shield } from "lucide-react";
 import type { FileSystemProvider } from "../../types/explorer";
 
@@ -43,6 +44,7 @@ export function ExplorerToolbar({
   leadingSlot,
   hideBottomBorder,
 }: ExplorerToolbarProps) {
+  const { t } = useTranslation();
   const caps = provider.capabilities;
 
   const iconBtn = [
@@ -68,8 +70,8 @@ export function ExplorerToolbar({
           data-testid="explorer-home"
           onClick={() => onNavigate(provider.type === "sftp" ? "/" : "")}
           disabled={loading || isAtRoot}
-          title={`Go to ${provider.rootLabel()}`}
-          aria-label="Go to root"
+          title={t("explorer.toolbar.goToRoot", { root: provider.rootLabel() })}
+          aria-label={t("explorer.toolbar.goToRootAria")}
           className={iconBtn}
         >
           <Home size={15} strokeWidth={1.8} aria-hidden="true" />
@@ -79,7 +81,7 @@ export function ExplorerToolbar({
       {/* Breadcrumb path */}
       <div
         className="flex items-center gap-0 overflow-x-auto flex-1 min-w-0 mx-1"
-        aria-label="Current path"
+        aria-label={t("explorer.toolbar.currentPathAria")}
       >
         {segments.map((seg, index) => {
           const isLast = index === segments.length - 1;
@@ -98,7 +100,7 @@ export function ExplorerToolbar({
               <button
                 onClick={() => !isLast && onNavigate(seg.path)}
                 disabled={isLast}
-                title={isLast ? seg.path : `Navigate to ${seg.path}`}
+                title={isLast ? seg.path : t("explorer.toolbar.navigateTo", { path: seg.path })}
                 className={[
                   "px-1 py-0.5 rounded text-[length:var(--text-sm)]",
                   "transition-colors duration-[var(--duration-fast)]",
@@ -121,7 +123,7 @@ export function ExplorerToolbar({
           size={15}
           strokeWidth={2}
           className="text-accent motion-safe:animate-spin shrink-0"
-          aria-label="Operation in progress"
+          aria-label={t("explorer.toolbar.operationInProgress")}
         />
       )}
 
@@ -134,8 +136,8 @@ export function ExplorerToolbar({
           data-testid="explorer-upload"
           onClick={onUpload}
           disabled={loading}
-          title="Upload file"
-          aria-label="Upload file"
+          title={t("explorer.toolbar.uploadFile")}
+          aria-label={t("explorer.toolbar.uploadFile")}
           className={iconBtn}
         >
           <Upload size={15} strokeWidth={1.8} aria-hidden="true" />
@@ -148,8 +150,8 @@ export function ExplorerToolbar({
           data-testid="explorer-new-file"
           onClick={onNewFile}
           disabled={loading}
-          title="New file"
-          aria-label="New file"
+          title={t("explorer.toolbar.newFile")}
+          aria-label={t("explorer.toolbar.newFile")}
           className={iconBtn}
         >
           <FilePlus size={15} strokeWidth={1.8} aria-hidden="true" />
@@ -162,8 +164,8 @@ export function ExplorerToolbar({
           data-testid="explorer-new-folder"
           onClick={onNewFolder}
           disabled={loading}
-          title="New folder"
-          aria-label="New folder"
+          title={t("explorer.toolbar.newFolder")}
+          aria-label={t("explorer.toolbar.newFolder")}
           className={iconBtn}
         >
           <FolderPlus size={15} strokeWidth={1.8} aria-hidden="true" />
@@ -175,8 +177,8 @@ export function ExplorerToolbar({
         data-testid="explorer-refresh"
         onClick={onRefresh}
         disabled={loading}
-        title="Refresh"
-        aria-label="Refresh"
+        title={t("explorer.toolbar.refresh")}
+        aria-label={t("explorer.toolbar.refresh")}
         className={iconBtn}
       >
         <RefreshCw
@@ -193,8 +195,8 @@ export function ExplorerToolbar({
           onClick={onToggleSudo}
           disabled={sudoBusy}
           aria-busy={sudoBusy}
-          title={sudoMode ? "Disable sudo mode" : "Enable sudo mode"}
-          aria-label={sudoMode ? "Disable sudo mode" : "Enable sudo mode"}
+          title={sudoMode ? t("explorer.toolbar.sudoDisable") : t("explorer.toolbar.sudoEnable")}
+          aria-label={sudoMode ? t("explorer.toolbar.sudoDisable") : t("explorer.toolbar.sudoEnable")}
           aria-pressed={!!sudoMode}
           className={[
             iconBtn,

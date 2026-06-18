@@ -118,8 +118,16 @@ pub fn run() {
                 _ => String::new(),
             };
 
+            // Interface font size (px) — inject before first paint.
+            let font_size_script = match host_db.get_setting("app_interface_font_size") {
+                Ok(Some(s)) if !s.is_empty() => format!(
+                    "(function(b){{var b=+b||15;document.documentElement.style.setProperty('--text-2xs',Math.round(b*.73)+'px');document.documentElement.style.setProperty('--text-xs',Math.round(b*.80)+'px');document.documentElement.style.setProperty('--text-sm',Math.round(b*.93)+'px');document.documentElement.style.setProperty('--text-base',b+'px');document.documentElement.style.setProperty('--text-lg',Math.round(b*1.13)+'px');}})({s:?});"
+                ),
+                _ => String::new(),
+            };
+
             let theme_script = format!(
-                "document.documentElement.dataset.theme = {theme:?}; document.documentElement.style.setProperty('--accent-hue', '{accent_hue}');{custom_accent_script}{font_script}"
+                "document.documentElement.dataset.theme = {theme:?}; document.documentElement.style.setProperty('--accent-hue', '{accent_hue}');{custom_accent_script}{font_script}{font_size_script}"
             );
 
             WebviewWindowBuilder::new(app.handle(), "main", WebviewUrl::App("index.html".into()))
