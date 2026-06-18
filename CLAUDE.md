@@ -316,9 +316,12 @@ Tailwind CSS v4 with a custom theme system. Theme tokens are in `src/theme.css` 
 
 ```bash
 pnpm test --run                    # All 15 files, 92 tests — must pass
+cargo fmt --all --check            # Rust formatting — must pass
 cargo test                         # All Rust tests — must pass (180+)
 npx tsc --noEmit                   # Zero type errors
 ```
+
+> **Rust 代码改完后必须跑 `cargo fmt --all`**，否则 CI 的 `cargo fmt --check` 会挂。IDE 不会自动格式化 Rust，所以每次改完手动跑一下。
 
 #### Coverage of existing test files
 

@@ -268,7 +268,6 @@ impl HostDb {
             tracing::info!("migration 4→5 applied: added icon column to host_groups");
         }
 
-
         if version < 7 {
             conn.execute_batch(
                 "CREATE TABLE IF NOT EXISTS app_settings (

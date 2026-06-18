@@ -66,9 +66,7 @@ pub async fn ssh_disconnect(
             crate::telemetry::capture("ssh_disconnected", serde_json::json!({}));
             Ok(())
         }
-        Err(SshError::SessionNotFound(_)) => {
-            local_state.disconnect(&session_id, app_handle).await
-        }
+        Err(SshError::SessionNotFound(_)) => local_state.disconnect(&session_id, app_handle).await,
         Err(e) => Err(e),
     }
 }

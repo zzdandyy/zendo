@@ -1,7 +1,7 @@
+use super::session::LocalSession;
+use crate::types::{ConnectionStatus, SessionId, SshError, SshStatusPayload};
 use dashmap::DashMap;
 use tauri::{AppHandle, Emitter};
-use crate::types::{ConnectionStatus, SessionId, SshError, SshStatusPayload};
-use super::session::LocalSession;
 
 pub struct LocalSessionManager {
     sessions: DashMap<String, LocalSession>,

@@ -37,9 +37,8 @@ impl LocalSession {
             .map_err(|e| SshError::ChannelError(format!("failed to create PTY: {e}")))?;
 
         // 2. Determine shell path
-        let shell_path = shell.unwrap_or_else(|| {
-            std::env::var("SHELL").unwrap_or_else(|_| "/bin/bash".to_string())
-        });
+        let shell_path = shell
+            .unwrap_or_else(|| std::env::var("SHELL").unwrap_or_else(|_| "/bin/bash".to_string()));
 
         // 3. Spawn the shell in the PTY slave
         let mut cmd = CommandBuilder::new(&shell_path);

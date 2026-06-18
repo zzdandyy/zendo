@@ -1,9 +1,9 @@
-use crate::sftp::format_permissions;
-use crate::types::{SessionId, SshError};
 use super::manager::LocalSessionManager;
+use super::LocalChmodSummary;
 use super::LocalEntry;
 use super::LocalEntryType;
-use super::LocalChmodSummary;
+use crate::sftp::format_permissions;
+use crate::types::{SessionId, SshError};
 use tauri::{AppHandle, State};
 
 // ─── Terminal (existing) ─────────────────────────────────────────────────────
@@ -67,9 +67,8 @@ pub async fn local_list_dir(path: Option<String>) -> Result<Vec<LocalEntry>, Ssh
 
     let mut entries: Vec<LocalEntry> = Vec::new();
 
-    let read_dir = std::fs::read_dir(&dir).map_err(|e| {
-        SshError::ChannelError(format!("cannot read directory {dir}: {e}"))
-    })?;
+    let read_dir = std::fs::read_dir(&dir)
+        .map_err(|e| SshError::ChannelError(format!("cannot read directory {dir}: {e}")))?;
 
     for entry in read_dir {
         let entry = match entry {
@@ -208,7 +207,9 @@ pub async fn local_chmod(path: String, mode: u32) -> Result<(), SshError> {
     #[cfg(not(unix))]
     {
         let _ = (path, mode);
-        return Err(SshError::ChannelError("chmod is not supported on this platform".into()));
+        return Err(SshError::ChannelError(
+            "chmod is not supported on this platform".into(),
+        ));
     }
     #[cfg(unix)]
     {
@@ -225,7 +226,9 @@ pub async fn local_chmod_recursive(path: String, mode: u32) -> Result<LocalChmod
     #[cfg(not(unix))]
     {
         let _ = (path, mode);
-        return Err(SshError::ChannelError("chmod is not supported on this platform".into()));
+        return Err(SshError::ChannelError(
+            "chmod is not supported on this platform".into(),
+        ));
     }
     #[cfg(unix)]
     {
@@ -282,9 +285,7 @@ mod tests {
 
     fn temp_home() -> (tempfile::TempDir, String) {
         // Use a subdirectory of $HOME so test paths resolve cleanly.
-        let test_root = dirs::home_dir()
-            .expect("home_dir")
-            .join(".zendo-tests");
+        let test_root = dirs::home_dir().expect("home_dir").join(".zendo-tests");
         let _ = std::fs::create_dir_all(&test_root);
         let d = tempfile::tempdir_in(&test_root).expect("tempdir_in");
         let home = d.path().to_string_lossy().to_string();
@@ -357,11 +358,16 @@ mod tests {
         setup_dir(&home, "test/subdir");
         setup_file(&home, "test/a_file.txt", "a");
 
-        let entries = local_list_dir(Some(format!("{home}/test"))).await.expect("list");
+        let entries = local_list_dir(Some(format!("{home}/test")))
+            .await
+            .expect("list");
         let names: Vec<&str> = entries.iter().map(|e| e.name.as_str()).collect();
         // Directories first.
         let subdir_idx = names.iter().position(|n| *n == "subdir").expect("subdir");
-        let z_idx = names.iter().position(|n| *n == "z_file.txt").expect("z_file");
+        let z_idx = names
+            .iter()
+            .position(|n| *n == "z_file.txt")
+            .expect("z_file");
         assert!(subdir_idx < z_idx, "dirs must come before files");
     }
 
@@ -369,7 +375,9 @@ mod tests {
     async fn list_dir_returns_empty_for_empty_dir() {
         let (_d, home) = temp_home();
         setup_dir(&home, "empty");
-        let entries = local_list_dir(Some(format!("{home}/empty"))).await.expect("list");
+        let entries = local_list_dir(Some(format!("{home}/empty")))
+            .await
+            .expect("list");
         assert!(entries.is_empty());
     }
 
@@ -450,7 +458,9 @@ mod tests {
         let (_d, home) = temp_home();
         let old = setup_file(&home, "old.txt", "hello");
         let new = format!("{home}/new.txt");
-        local_rename(old.clone(), new.clone()).await.expect("rename");
+        local_rename(old.clone(), new.clone())
+            .await
+            .expect("rename");
         assert!(!std::path::Path::new(&old).exists());
         assert!(std::path::Path::new(&new).exists());
         assert_eq!(std::fs::read_to_string(&new).unwrap(), "hello");
@@ -462,7 +472,9 @@ mod tests {
         setup_dir(&home, "dst");
         let old = setup_file(&home, "src.txt", "move me");
         let new = format!("{home}/dst/src.txt");
-        local_rename(old.clone(), new.clone()).await.expect("rename");
+        local_rename(old.clone(), new.clone())
+            .await
+            .expect("rename");
         assert!(!std::path::Path::new(&old).exists());
         assert_eq!(std::fs::read_to_string(&new).unwrap(), "move me");
     }
@@ -498,9 +510,15 @@ mod tests {
         setup_dir(&home, "chmod_tree/sub");
         setup_file(&home, "chmod_tree/sub/c.txt", "");
 
-        let summary = local_chmod_recursive(dir.clone(), 0o400).await.expect("chmod -R");
+        let summary = local_chmod_recursive(dir.clone(), 0o400)
+            .await
+            .expect("chmod -R");
         // 1 dir + 3 files = 4 entries (no sub dir entry? actually: dir + a + b + sub + c = 5)
-        assert!(summary.applied >= 4, "should apply to at least 4 entries, got {}", summary.applied);
+        assert!(
+            summary.applied >= 4,
+            "should apply to at least 4 entries, got {}",
+            summary.applied
+        );
         assert!(summary.errors.is_empty(), "no errors expected");
     }
 }
