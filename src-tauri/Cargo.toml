@@ -1,0 +1,104 @@
+[package]
+name = "anyscp"
+version = "0.0.0-dev"
+description = "A modern desktop client for SSH, SFTP, and S3"
+authors = ["Nevil Macwan <macnev2013@gmail.com>"]
+license = "MIT"
+repository = "https://github.com/zzdandyy/zendo"
+homepage = "https://github.com/zzdandyy/zendo"
+edition = "2021"
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "anyscp_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+# Tauri framework
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# SSH (pure Rust, async)
+russh = "0.46"
+russh-keys = "0.46"
+async-trait = "0.1"
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# Error handling
+thiserror = "2"
+
+# Unique session IDs
+uuid = { version = "1", features = ["v4"] }
+
+# Concurrent session map
+dashmap = "6"
+
+# SQLite persistence
+rusqlite = { version = "0.31", features = ["bundled"] }
+
+# File watching (for edit-in-vscode re-upload on save)
+notify = { version = "7", default-features = false, features = ["macos_kqueue"] }
+
+# SFTP
+russh-sftp = "2.1"
+
+# Cancellation tokens for in-flight transfers
+tokio-util = { version = "0.7" }
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# OS credential store: macOS Keychain (apple-native), Windows DPAPI
+# (windows-native), Linux kernel keyutils (linux-native — name is misleading;
+# it's the keyutils backend, not libsecret). On Linux, PAM normally sets up
+# a session keyring on login; in containers you need `keyctl session` + a
+# non-default seccomp profile.
+keyring = { version = "3", features = ["apple-native", "linux-native", "windows-native"] }
+tauri-plugin-dialog = "2.6.0"
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
+# Native clipboard read/write. The webview's navigator.clipboard.readText() is
+# blocked in the macOS WKWebView, so terminal paste (#71) reads through this.
+tauri-plugin-clipboard-manager = "2.3.2"
+# Native OS drag-out: hands real local file handles to the OS so files can be
+# dragged from the Explorer onto the desktop/Finder. The HTML5 DataTransfer API
+# cannot do this from a webview (see drag-out comment in ExplorerFileTable). We
+# use the `drag` crate directly (rather than tauri-plugin-drag) so the drag is
+# driven from a backend command that only ever hands the OS validated staging
+# paths — the webview can't name an arbitrary local file to drag out.
+drag = "2"
+ssh2-config = "0.7.0"
+rust-s3 = { version = "0.37.1", default-features = false, features = ["tokio-rustls-tls"] }
+
+# Encrypted backup/restore: Argon2id key derivation + AES-256-GCM, written as a
+# compact binary container (no JSON/base64). `getrandom` provides the OS CSPRNG
+# for the per-backup salt and nonce.
+argon2 = "0.5"
+aes-gcm = "0.10"
+getrandom = "0.2"
+# Compress the backup payload before encrypting — a raw SQLite snapshot is
+# mostly zero-filled pages, so this shrinks the file ~10-50x. Pure-Rust backend.
+flate2 = "1"
+
+# Local terminal PTY (cross-platform: forkpty on unix, ConPTY on Windows)
+portable-pty = "0.8"
+
+# Telemetry
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+dirs = "6"
+
+[dev-dependencies]
+tempfile = "3"
+

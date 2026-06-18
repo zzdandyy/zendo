@@ -1,0 +1,217 @@
+{
+  "sidebar": {
+    "heading": "Settings"
+  },
+  "sections": {
+    "appearance": "Appearance",
+    "terminal": "Terminal",
+    "explorer": "Explorer",
+    "transfers": "Transfers",
+    "editors": "Editors",
+    "data": "Data",
+    "about": "About & Updates"
+  },
+  "descriptions": {
+    "appearance": "Theme and interface look.",
+    "terminal": "Font, cursor, and scrollback history.",
+    "explorer": "How the file browser behaves.",
+    "transfers": "Control how files are transferred.",
+    "editors": "Editors used by \"Edit\" / \"Open With\" in the file browser.",
+    "data": "Back up, restore, and reset your data.",
+    "about": "App information, links, and updates."
+  },
+  "groups": {
+    "theme": "Theme",
+    "interface": "Interface",
+    "font": "Font",
+    "cursor": "Cursor",
+    "clipboard": "Clipboard",
+    "history": "History",
+    "backup": "Backup",
+    "dangerZone": "Danger Zone",
+    "about": "About",
+    "updates": "Updates",
+    "editors": "Editors",
+    "foundOnComputer": "Found on this computer"
+  },
+  "appearance": {
+    "colorTheme": {
+      "label": "Color Theme",
+      "desc": "Switch between dark and light themes"
+    },
+    "dark": "Dark",
+    "light": "Light",
+    "accentColor": {
+      "label": "Accent Color",
+      "desc": "Used for buttons, links, and active states"
+    },
+    "presets": {
+      "blue": "Blue",
+      "indigo": "Indigo",
+      "violet": "Violet",
+      "pink": "Pink",
+      "red": "Red",
+      "orange": "Orange",
+      "green": "Green",
+      "teal": "Teal"
+    },
+    "custom": "Custom",
+    "customColor": "Custom color",
+    "customAccent": "Custom accent color",
+    "lightness": "Lightness",
+    "saturation": "Saturation",
+    "interfaceFont": {
+      "label": "Interface Font",
+      "desc": "Font for menus, labels, and panels"
+    }
+  },
+  "terminal": {
+    "fontFamily": {
+      "label": "Font Family",
+      "desc": "Monospace font used by terminals"
+    },
+    "fontSize": {
+      "label": "Font Size",
+      "desc": "Size in pixels (8–42)"
+    },
+    "lineHeight": {
+      "label": "Line Height",
+      "desc": "Spacing between lines (1.0–2.0)"
+    },
+    "cursorStyle": {
+      "label": "Cursor Style",
+      "desc": "Shape of the terminal cursor"
+    },
+    "cursorBar": "Bar",
+    "cursorBlock": "Block",
+    "cursorUnderline": "Underline",
+    "cursorBlink": {
+      "label": "Cursor Blink",
+      "desc": "Animate the cursor"
+    },
+    "copyOnSelect": {
+      "label": "Copy on Select",
+      "desc": "Copy highlighted text to the clipboard automatically"
+    },
+    "pasteButton": {
+      "label": "Paste Button",
+      "desc": "Mouse button that pastes the clipboard into the terminal"
+    },
+    "pasteOff": "Off",
+    "pasteRight": "Right-click",
+    "pasteMiddle": "Middle-click",
+    "scrollback": {
+      "label": "Scrollback Buffer",
+      "desc": "Number of lines to keep in history (500–100,000)"
+    },
+    "changesApplyImmediately": "Changes apply to open terminals immediately."
+  },
+  "explorer": {
+    "doubleClick": {
+      "label": "Double-click a File",
+      "desc": "What happens when you double-click a file in the browser"
+    },
+    "download": "Download",
+    "openInEditor": "Open in Editor",
+    "openFallback": "Opening falls back to downloading when no editor is configured (see Editors)."
+  },
+  "transfers": {
+    "concurrency": {
+      "label": "Concurrent Transfers",
+      "desc": "Maximum simultaneous file transfers (1–10)"
+    }
+  },
+  "data": {
+    "exportBackup": {
+      "label": "Export encrypted backup",
+      "desc": "Save all hosts, groups, settings, and stored credentials to a single password-protected file."
+    },
+    "exportButton": "Export…",
+    "importBackup": {
+      "label": "Import backup",
+      "desc": "Restore from a backup file. This replaces all current data and restarts Zendo."
+    },
+    "importButton": "Import…",
+    "clearAll": {
+      "label": "Clear all data",
+      "desc": "Permanently delete every saved host, group, connection history entry, port-forward rule, and S3 connection — along with their stored credentials and all app preferences. Zendo restarts at first-launch state. This can't be undone."
+    },
+    "clearAllButton": "Clear all data…"
+  },
+  "backupModal": {
+    "exportTitle": "Export encrypted backup",
+    "importTitle": "Import backup",
+    "exportDesc": "Choose a password to encrypt the backup. You'll need it to restore — there's no way to recover the data without it.",
+    "importDesc": "Enter the password this backup was created with. Importing replaces all current data and restarts Zendo.",
+    "password": "Password",
+    "confirmPassword": "Confirm password",
+    "passwordPlaceholder": "Backup password",
+    "confirmPlaceholder": "Re-enter password",
+    "atLeastNChars": "At least {{count}} characters",
+    "passwordsDontMatch": "Passwords don't match.",
+    "chooseFileAndExport": "Choose file & export",
+    "exporting": "Exporting…",
+    "importAndRestart": "Import & restart",
+    "restoring": "Restoring…",
+    "exportSuccess": "Encrypted backup saved.",
+    "exportFail": "Couldn't export backup.",
+    "importFail": "Import failed."
+  },
+  "resetModal": {
+    "title": "Clear all data?",
+    "desc": "This permanently deletes <strong>all</strong> saved hosts, groups, history, port-forward rules, S3 connections, stored credentials, and preferences. Zendo will restart fresh. This action cannot be undone.",
+    "typeToConfirm": "Type <code>{{word}}</code> to confirm",
+    "confirmWord": "DELETE",
+    "clearButton": "Clear all data",
+    "clearing": "Clearing…",
+    "failToast": "Couldn't clear data. Please try again."
+  },
+  "editors": {
+    "emptyState": "No editors configured. Scan for installed editors, or add one manually.",
+    "scan": "Scan for editors",
+    "scanning": "Scanning…",
+    "addCustom": "Add custom editor",
+    "starHint": "The starred editor is used by \"Edit\"; the rest appear under \"Open With\".",
+    "add": "Add",
+    "defaultBadge": "Default",
+    "defaultEditor": "Default editor",
+    "setAsDefault": "Set as default",
+    "remove": "Remove",
+    "noEditorsFound": "No editors found on this computer.",
+    "allAlreadyAdded": "All detected editors are already added.",
+    "scanFail": "Couldn't scan for editors."
+  },
+  "editorModal": {
+    "title": "Add Editor",
+    "name": "Name",
+    "namePlaceholder": "e.g. Sublime Text",
+    "execPath": "Executable path",
+    "execPathPlaceholder": "/path/to/editor",
+    "arguments": "Arguments",
+    "argumentsHint": "Use <code>{{placeholder}}</code> where the file should go. If omitted, it's added at the end.",
+    "browse": "Browse",
+    "addEditor": "Add editor"
+  },
+  "about": {
+    "title": "Zendo",
+    "desc": "A modern desktop client for SSH, SFTP, and S3",
+    "repository": "Repository",
+    "repositoryDesc": "Source code, issues, and releases",
+    "github": "Repository",
+    "appVersion": "App Version",
+    "autoUpdate": {
+      "label": "Automatic Updates",
+      "desc": "Download and install updates in the background, applied on the next launch"
+    },
+    "upToDate": "You're on the latest version",
+    "versionAvailable": "v{{version}} is available",
+    "downloading": "Downloading update... {{progress}}%",
+    "ready": "Update downloaded. Restart to apply.",
+    "current": "Current: v{{version}}",
+    "readingVersion": "Reading version…",
+    "somethingWentWrong": "Something went wrong",
+    "check": "Check",
+    "checking": "Checking...",
+    "restartNow": "Restart Now"
+  }
+}

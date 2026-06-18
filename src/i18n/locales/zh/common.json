@@ -1,0 +1,52 @@
+{
+  "button": {
+    "cancel": "取消",
+    "save": "保存",
+    "close": "关闭",
+    "delete": "删除",
+    "confirm": "确认",
+    "browse": "浏览",
+    "add": "添加",
+    "remove": "移除",
+    "search": "搜索",
+    "retry": "重试"
+  },
+  "status": {
+    "loading": "加载中…",
+    "error": "错误",
+    "success": "成功"
+  },
+  "nav": {
+    "hosts": "连接",
+    "s3": "云存储",
+    "transfer": "文件传输",
+    "transfers": "传输",
+    "settings": "设置"
+  },
+  "tab": {
+    "rename": "重命名",
+    "duplicate": "复制",
+    "newTab": "新建标签",
+    "close": "关闭 {name}",
+    "home": "主页",
+    "homeShortcut": "主页 (⌘B)",
+    "openSessions": "打开的会话",
+    "zoomedPane": "已放大的面板",
+    "panes": "{count} 个面板"
+  },
+  "dismiss": "关闭",
+  "transfer": {
+    "swapSides": "交换左右",
+    "resizeHandle": "调整栏宽",
+    "cancel": "取消"
+  },
+  "pane": {
+    "localLabel": "本地",
+    "notConnected": "未连接",
+    "showHidden": "显示隐藏文件",
+    "hideHidden": "隐藏隐藏文件"
+  },
+  "aria": {
+    "contextMenu": "上下文菜单"
+  }
+}

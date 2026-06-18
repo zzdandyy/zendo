@@ -1,0 +1,217 @@
+{
+  "sidebar": {
+    "heading": "设置"
+  },
+  "sections": {
+    "appearance": "外观",
+    "terminal": "终端",
+    "explorer": "文件浏览器",
+    "transfers": "传输",
+    "editors": "编辑器",
+    "data": "数据",
+    "about": "关于 & 更新"
+  },
+  "descriptions": {
+    "appearance": "主题和界面外观。",
+    "terminal": "字体、光标和回滚历史。",
+    "explorer": "文件浏览器行为设置。",
+    "transfers": "控制文件传输方式。",
+    "editors": "文件浏览器中 \"Edit\" / \"Open With\" 使用的编辑器。",
+    "data": "备份、恢复和重置数据。",
+    "about": "应用信息、链接和更新。"
+  },
+  "groups": {
+    "theme": "主题",
+    "interface": "界面",
+    "font": "字体",
+    "cursor": "光标",
+    "clipboard": "剪贴板",
+    "history": "历史记录",
+    "backup": "备份",
+    "dangerZone": "危险操作",
+    "about": "关于",
+    "updates": "更新",
+    "editors": "编辑器",
+    "foundOnComputer": "本机已安装"
+  },
+  "appearance": {
+    "colorTheme": {
+      "label": "颜色主题",
+      "desc": "在深色和浅色主题之间切换"
+    },
+    "dark": "深色",
+    "light": "浅色",
+    "accentColor": {
+      "label": "强调色",
+      "desc": "用于按钮、链接和激活状态"
+    },
+    "presets": {
+      "blue": "蓝色",
+      "indigo": "靛蓝",
+      "violet": "紫罗兰",
+      "pink": "粉色",
+      "red": "红色",
+      "orange": "橙色",
+      "green": "绿色",
+      "teal": "青色"
+    },
+    "custom": "自定义",
+    "customColor": "自定义颜色",
+    "customAccent": "自定义强调色",
+    "lightness": "亮度",
+    "saturation": "饱和度",
+    "interfaceFont": {
+      "label": "界面字体",
+      "desc": "菜单、标签和面板使用的字体"
+    }
+  },
+  "terminal": {
+    "fontFamily": {
+      "label": "字体",
+      "desc": "终端使用的等宽字体"
+    },
+    "fontSize": {
+      "label": "字号",
+      "desc": "像素大小（8–42）"
+    },
+    "lineHeight": {
+      "label": "行高",
+      "desc": "行间距（1.0–2.0）"
+    },
+    "cursorStyle": {
+      "label": "光标样式",
+      "desc": "终端光标的形状"
+    },
+    "cursorBar": "竖线",
+    "cursorBlock": "方块",
+    "cursorUnderline": "下划线",
+    "cursorBlink": {
+      "label": "光标闪烁",
+      "desc": "让光标闪烁"
+    },
+    "copyOnSelect": {
+      "label": "选中即复制",
+      "desc": "选中文本后自动复制到剪贴板"
+    },
+    "pasteButton": {
+      "label": "粘贴按键",
+      "desc": "将剪贴板内容粘贴到终端的鼠标按键"
+    },
+    "pasteOff": "关闭",
+    "pasteRight": "右键",
+    "pasteMiddle": "中键",
+    "scrollback": {
+      "label": "回滚缓冲区",
+      "desc": "保留的历史行数（500–100,000）"
+    },
+    "changesApplyImmediately": "更改会立即应用到已打开的终端。"
+  },
+  "explorer": {
+    "doubleClick": {
+      "label": "双击文件",
+      "desc": "在文件浏览器中双击文件时的操作"
+    },
+    "download": "下载",
+    "openInEditor": "在编辑器中打开",
+    "openFallback": "未配置编辑器时将回退到下载（参见编辑器设置）。"
+  },
+  "transfers": {
+    "concurrency": {
+      "label": "并发传输数",
+      "desc": "最大同时传输文件数（1–10）"
+    }
+  },
+  "data": {
+    "exportBackup": {
+      "label": "导出加密备份",
+      "desc": "将所有主机、分组、设置和已保存的凭据保存到一个受密码保护的文件中。"
+    },
+    "exportButton": "导出…",
+    "importBackup": {
+      "label": "导入备份",
+      "desc": "从备份文件恢复。这将替换所有当前数据并重启 Zendo。"
+    },
+    "importButton": "导入…",
+    "clearAll": {
+      "label": "清除所有数据",
+      "desc": "永久删除所有已保存的主机、分组、连接历史、端口转发规则和 S3 连接——以及它们已存储的凭据和所有应用偏好。Zendo 将恢复到首次启动状态。此操作不可撤销。"
+    },
+    "clearAllButton": "清除所有数据…"
+  },
+  "backupModal": {
+    "exportTitle": "导出加密备份",
+    "importTitle": "导入备份",
+    "exportDesc": "设置一个密码来加密备份。恢复时需要此密码——没有密码将无法恢复数据。",
+    "importDesc": "输入创建此备份时使用的密码。导入将替换所有当前数据并重启 Zendo。",
+    "password": "密码",
+    "confirmPassword": "确认密码",
+    "passwordPlaceholder": "备份密码",
+    "confirmPlaceholder": "再次输入密码",
+    "atLeastNChars": "至少 {{count}} 个字符",
+    "passwordsDontMatch": "密码不一致。",
+    "chooseFileAndExport": "选择文件并导出",
+    "exporting": "正在导出…",
+    "importAndRestart": "导入并重启",
+    "restoring": "正在恢复…",
+    "exportSuccess": "加密备份已保存。",
+    "exportFail": "无法导出备份。",
+    "importFail": "导入失败。"
+  },
+  "resetModal": {
+    "title": "清除所有数据？",
+    "desc": "这将永久删除<strong>所有</strong>已保存的主机、分组、历史记录、端口转发规则、S3 连接、已存储的凭据和偏好设置。Zendo 将重新启动。此操作不可撤销。",
+    "typeToConfirm": "输入 <code>{{word}}</code> 以确认",
+    "confirmWord": "DELETE",
+    "clearButton": "清除所有数据",
+    "clearing": "正在清除…",
+    "failToast": "无法清除数据。请重试。"
+  },
+  "editors": {
+    "emptyState": "尚未配置编辑器。可以扫描已安装的编辑器，或手动添加。",
+    "scan": "扫描编辑器",
+    "scanning": "正在扫描…",
+    "addCustom": "添加自定义编辑器",
+    "starHint": "带星标的编辑器用于 \"Edit\"；其余出现在 \"Open With\" 中。",
+    "add": "添加",
+    "defaultBadge": "默认",
+    "defaultEditor": "默认编辑器",
+    "setAsDefault": "设为默认",
+    "remove": "移除",
+    "noEditorsFound": "此电脑上未找到编辑器。",
+    "allAlreadyAdded": "所有检测到的编辑器已添加。",
+    "scanFail": "无法扫描编辑器。"
+  },
+  "editorModal": {
+    "title": "添加编辑器",
+    "name": "名称",
+    "namePlaceholder": "例如 Sublime Text",
+    "execPath": "可执行文件路径",
+    "execPathPlaceholder": "/path/to/editor",
+    "arguments": "参数",
+    "argumentsHint": "使用 <code>{{placeholder}}</code> 表示文件路径。如省略，会自动附加在末尾。",
+    "browse": "浏览",
+    "addEditor": "添加编辑器"
+  },
+  "about": {
+    "title": "Zendo",
+    "desc": "现代桌面 SSH、SFTP 和 S3 客户端",
+    "repository": "仓库",
+    "repositoryDesc": "源码、Issue 和 Release",
+    "github": "仓库",
+    "appVersion": "应用版本",
+    "autoUpdate": {
+      "label": "自动更新",
+      "desc": "在后台下载和安装更新，下次启动时应用"
+    },
+    "upToDate": "已是最新版本",
+    "versionAvailable": "v{{version}} 可用",
+    "downloading": "正在下载更新... {{progress}}%",
+    "ready": "更新已下载。重启以应用。",
+    "current": "当前: v{{version}}",
+    "readingVersion": "正在读取版本…",
+    "somethingWentWrong": "出了点问题",
+    "check": "检查",
+    "checking": "检查中...",
+    "restartNow": "立即重启"
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "button": {
+    "cancel": "Cancel",
+    "save": "Save",
+    "close": "Close",
+    "delete": "Delete",
+    "confirm": "Confirm",
+    "browse": "Browse",
+    "add": "Add",
+    "remove": "Remove",
+    "search": "Search",
+    "retry": "Retry"
+  },
+  "status": {
+    "loading": "Loading…",
+    "error": "Error",
+    "success": "Success"
+  },
+  "nav": {
+    "hosts": "Connections",
+    "s3": "Cloud Storage",
+    "transfer": "File Transfer",
+    "transfers": "Transfers",
+    "settings": "Settings"
+  },
+  "tab": {
+    "rename": "Rename",
+    "duplicate": "Duplicate",
+    "newTab": "New tab",
+    "close": "Close {name}",
+    "home": "Home",
+    "homeShortcut": "Home (⌘B)",
+    "openSessions": "Open sessions",
+    "zoomedPane": "Zoomed pane",
+    "panes": "{count} panes"
+  },
+  "dismiss": "Dismiss",
+  "transfer": {
+    "swapSides": "Swap sides",
+    "resizeHandle": "Resize panes",
+    "cancel": "Cancel"
+  },
+  "pane": {
+    "localLabel": "Local",
+    "notConnected": "Not connected",
+    "showHidden": "Show hidden files",
+    "hideHidden": "Hide hidden files"
+  },
+  "aria": {
+    "contextMenu": "Context menu"
+  }
+}
