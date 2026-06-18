@@ -23,6 +23,7 @@ fn now_ms() -> u64 {
 // ─── Main command ────────────────────────────────────────────────────────────
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn cross_transfer(
     app_handle: AppHandle,
     sftp_manager: State<'_, Arc<SftpManager>>,
@@ -106,6 +107,7 @@ fn parse_label(typ: &str, label: Option<String>) -> SourceLabel {
 
 // ─── Core transfer logic ─────────────────────────────────────────────────────
 
+#[allow(clippy::too_many_arguments)]
 async fn run(
     app: &AppHandle,
     sftp_manager: &SftpManager,
@@ -455,6 +457,7 @@ async fn ensure_sftp_parent_dir(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn emit(
     app: &AppHandle,
     transfer_id: &str,
