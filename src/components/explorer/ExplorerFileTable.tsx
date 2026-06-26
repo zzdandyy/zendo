@@ -41,6 +41,9 @@ interface ExplorerFileTableProps {
   onSetClipboard: (clipboard: ExplorerClipboard | null) => void;
   onNavigate: (path: string) => void;
   onDownload: (entry: ExplorerEntry) => void;
+  /** Download a multi-entry selection at once (into a chosen folder). Absent
+   *  for providers without a batch-download path. */
+  onDownloadMany?: (entries: ExplorerEntry[]) => void;
   onDelete: (entries: ExplorerEntry[]) => Promise<void>;
   onRename?: (entry: ExplorerEntry, newName: string) => Promise<void>;
   onEditInEditor?: (entry: ExplorerEntry, editor?: EditorConfig) => void;
@@ -278,6 +281,7 @@ export function ExplorerFileTable({
   onSetClipboard,
   onNavigate,
   onDownload,
+  onDownloadMany,
   onDelete,
   onRename,
   onEditInEditor,
@@ -653,6 +657,13 @@ export function ExplorerFileTable({
 
     if (isInSelection) {
       const count = selectedIds.size;
+      if (caps.canDownload && onDownloadMany) {
+        items.push({
+          label: `Download ${count} items`,
+          icon: Download,
+          onClick: () => onDownloadMany(selectedEntries),
+        });
+      }
       if (caps.canCopyPaste) {
         items.push({
           label: t("explorer.contextMenu.copyN", { count }),
