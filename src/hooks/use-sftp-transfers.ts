@@ -204,10 +204,15 @@ export function useSftpTransfers() {
             eta_secs: p.eta_secs ?? null,
             created_at: p.created_at,
           };
+
+          // Auto-open popover only the first time we see a transfer (see the
+          // SFTP listener above for why this is checked before updateTransfer).
+          const isNew = !useTransferStore.getState().transfers.has(transfer.transfer_id);
+
           updateTransfer(transfer);
 
           // Auto-open popover when a new transfer starts
-          if (transfer.status === "InProgress" || transfer.status === "Queued") {
+          if (isNew && (transfer.status === "InProgress" || transfer.status === "Queued")) {
             if (!useTransferStore.getState().popoverOpen) {
               setPopoverOpen(true);
             }
